@@ -4,38 +4,37 @@
 % run 10 times and average:
 
 average_size = 1;
-dt =1e-11;   %100KHz
-T = 2e-6;
+dt =5e-13;   %2MHz
+T = 1e-6;
 T_array = 0:dt:T;
 % sensor_data_avr = zeros(average_size,size(T_array,2));
-mex   -DUSE_OMP H:\Software_packages\ValoMC-master\ValoMC-master\cpp\2d\MC2Dmex.cpp COMPFLAGS='\$COMPFLAGS /openmp'
+mex   -DUSE_OMP C:\Git\kwave\software_packages\ValoMC-master\ValoMC-master\cpp\2d\MC2Dmex.cpp COMPFLAGS='\$COMPFLAGS /openmp'
 %mex   -DUSE_OMP /home/hghodsi/ValoMC-master/ValoMC-master/cpp/2d/MC2Dmex.cpp COMPFLAGS='\$COMPFLAGS -fopenmp' CXXFLAGS='\$CXXFLAGS -fopenmp' LDFLAGS='\$LDFLAGS -fopenmp'
 for index = 1:average_size
     disp(index)
     % Create the k-Wave grid
-    Nx = 750;           % number of grid points in the x (row) direction
-    Ny = 750;           % number of grid points in the y (column) direction
-    dx = 1e-6;        % grid point spacing in the x direction [m]
-    dy = 1e-6;        % grid point spacing in the y direction [m]
+    Nx = 500;           % number of grid points in the x (row) direction
+    Ny = 500;           % number of grid points in the y (column) direction
+    dx = 2.5e-6;        % grid point spacing in the x direction [m]
+    dy = 2.5e-6;        % grid point spacing in the y direction [m]
     kgrid = kWaveGrid(Nx, dx, Ny, dy);
     vessel_mask = ones(Nx,Ny);   % all of the ROI for the test
-    clot_radious = round(250e-6/dx);            % clot radius = 250u
+    clot_radious = round(500e-6/dx);            % clot radius = 250u
     clot_mask = makeDisc(Nx,Ny,Nx/2,Ny/2,clot_radious);
-    RBC_radious = round(4e-6/dx);
-    RBC_ratio_Blood = 0;
-    %     RBC_ratio_clot = 0.8;
-    RBC_count_vessel = round((RBC_ratio_Blood*Nx*Ny)/(pi*RBC_radious^2));
+    RBC_radious = round(5e-6/dx);
+    % RBC_ratio_Blood = 0;
+    RBC_ratio_clot = 0.8;
+    % RBC_count_vessel = round((RBC_ratio_Blood*Nx*Ny)/(pi*RBC_radious^2));
 %     RBC_count_clot = round(RBC_ratio_clot*(pi*clot_radious^2)/(pi*RBC_radious^2));
-    Fibrin_count = 0;
-    average_fibrin_length = round(100e-6/dx);
-    output_mask_vessel = fill_with_RBC(Nx,Ny,vessel_mask,RBC_count_vessel,RBC_radious);
-    output_mask_clot = fill_with_RBC(Nx,Ny,clot_mask,6400,RBC_radious);   % 80%
-    output_mask_clot = output_mask_clot+fill_with_fibrin(Nx, Ny, clot_mask, Fibrin_count, average_fibrin_length);
-    output_mask_clot(output_mask_clot == 3) = 2;
+    % Fibrin_count = 0;
+    % average_fibrin_length = round(100e-6/dx);
+    % output_mask_vessel = fill_with_RBC(Nx,Ny,vessel_mask,RBC_count_vessel,RBC_radious);
+    output_mask_clot = fill_with_RBC(Nx,Ny,clot_mask,50,RBC_radious);   % 80%
+    % output_mask_clot = output_mask_clot+fill_with_fibrin(Nx, Ny, clot_mask, Fibrin_count, average_fibrin_length);
+    % output_mask_clot(output_mask_clot == 3) = 2;
     disc_indices = find(output_mask_clot==1);
     line_indices = find(output_mask_clot==2);
     disp(sum(sum(output_mask_clot))/sum(sum(clot_mask)));
-
     figure
     xx = linspace(-Nx*dx/2,+Nx*dx/2,Nx);
     yy = linspace(-Ny*dy/2,+Ny*dy/2,Ny);
@@ -46,7 +45,7 @@ for index = 1:average_size
 
     % Define the acoustic properties
 
-    medium.sound_speed = 1549.03*ones(Nx, Ny);    % [m/s]
+    medium.sound_speed = 1500*ones(Nx, Ny);    % [m/s]
     medium.sound_speed(disc_indices) = 2380;   % [m/s]
     medium.sound_speed(line_indices) = 2380;   % [m/s]
 
@@ -61,8 +60,8 @@ for index = 1:average_size
     vmcmedium.scattering_coefficient = 0.0001*ones(Nx, Ny);
     vmcmedium.absorption_coefficient = 0.0001*ones(Nx, Ny);
     % Define the acoustic properties
-    vmcmedium.absorption_coefficient(disc_indices) = 22.48;
-    vmcmedium.scattering_coefficient(disc_indices) = 72.78;
+    vmcmedium.absorption_coefficient(disc_indices) = 0.2248;
+    vmcmedium.scattering_coefficient(disc_indices) = 0.7278;
     vmcmedium.absorption_coefficient(line_indices) = 22;
     vmcmedium.scattering_coefficient(line_indices) = 0.1;
     vmcmedium.scattering_anisotropy = 0.9678;           % scattering anisotropy parameter [unitless]
@@ -76,12 +75,16 @@ for index = 1:average_size
 
     % Set a light source with a width of 10u and cosinic directional profile
     % in -x direction
+    line_start = [0 ceil(-3/5*Nx)];
+    line_end = [0 0];
+    line_width = 1;
     boundary_with_lightsource = findBoundaries(vmcmesh, 'direction', ...
-        [0 0], ...
-        [-5 0], ...
-        0.01);
+                              line_start, ...
+                              line_end,  ...
+                              line_width);
+    vmcboundary.lightsource(boundary_with_lightsource) = {'gaussian'};
+    vmcboundary.lightsource_gaussian_sigma = 0.1;
 
-    vmcboundary.lightsource(boundary_with_lightsource) = {'cosinic'};
 
 
     %% Run the Monte Carlo simulation
@@ -102,9 +105,9 @@ for index = 1:average_size
     %% Define the k-Wave sensor mask
 
     % define a 2D binary sensor mask in the shape of a line
-    width = 500; % [grid points]
+    width = Ny; % [grid points]
     sensor.mask = zeros(Nx, Ny);
-    sensor.mask(1, ceil(Ny/2 - width/2 + 1):ceil(Ny/2 + width/2)) = 1;
+    sensor.mask(ceil(Ny/2 - width/2 + 1):ceil(Ny/2 + width/2),1) = 1;
 
     %% Move the perfectly matched layer (PML) outside of the computation domain and run the acoustic simulation
     % The PML is a layer that absorbs waves for simulating free regions and
@@ -120,22 +123,39 @@ end
 
 %% Plot the solution
 
+% save k0_65.mat sensor_data
 
 figure
-plot(kgrid.t_array,sensor_data)
+plot(kgrid.t_array,sensor_data(floor(Ny/2),:))
 xlabel 'simulation  time (s)'
 ylabel 'Single sensor outout(au)'
 title 'sensor output (time domain)'
 grid on
 grid minor
 
+% p_xy = kspaceLineRecon(sensor_data.', dy, kgrid.dt, medium.sound_speed(1,1), 'Plot', true);
 
 figure
-plot(T_array,sensor_data)
-xlabel 'simulation  time (s)'
-ylabel 'Single sensor outout(au)'
-title 'sensor output (time domain)'
+Fs = T/dt;  % Sampling rate in Hz
+N = length(mean(sensor_data,1));
+fft_result = fft(mean(sensor_data));
+frequencies = (0:N-1) * (Fs / N);
+frequencies = frequencies(1:N/2);
+fft_result = fft_result(1:N/2);
+fft_result = abs(fft_result);
+loglog(frequencies, fft_result);
+title('Frequency Domain Spectrum');
+xlabel('Frequency (Hz)');
+ylabel('Magnitude(a.u.)');
 grid on
 grid minor
+
+% figure
+% plot(T_array,sensor_data)
+% xlabel 'simulation  time (s)'
+% ylabel 'Single sensor outout(au)'
+% title 'sensor output (time domain)'
+% grid on
+% grid minor
 
 

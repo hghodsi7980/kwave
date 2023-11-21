@@ -232,10 +232,10 @@ if plot_recon
     % create the figure
     figure;
     imagesc(y_axis * scale, x_axis * scale, p, [-plot_scale, plot_scale]);
-    axis image;
-    colormap(getColorMap);
-    xlabel(['Sensor Position [' prefix 'm]']);
-    ylabel(['Depth [' prefix 'm]']);
-    colorbar;
+    % axis image;
+    % colormap(getColorMap);
+    % xlabel(['Sensor Position [' prefix 'm]']);
+    % ylabel(['Depth [' prefix 'm]']);
+    % colorbar;
     
 end
