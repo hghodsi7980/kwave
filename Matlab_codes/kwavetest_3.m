@@ -3,13 +3,17 @@
 % close all
 % run 10 times and average:
 
+addpath(genpath('/home/hghodsi/Software_packages'))
+addpath(genpath('/home/hghodsi/Matlab_codes'))
+
+
 average_size = 1;
-dt =5e-13;   %2MHz
+dt =5e-14;   %2MHz
 T = 1e-6;
 T_array = 0:dt:T;
 % sensor_data_avr = zeros(average_size,size(T_array,2));
-mex   -DUSE_OMP C:\Git\kwave\software_packages\ValoMC-master\ValoMC-master\cpp\2d\MC2Dmex.cpp COMPFLAGS='\$COMPFLAGS /openmp'
-%mex   -DUSE_OMP /home/hghodsi/ValoMC-master/ValoMC-master/cpp/2d/MC2Dmex.cpp COMPFLAGS='\$COMPFLAGS -fopenmp' CXXFLAGS='\$CXXFLAGS -fopenmp' LDFLAGS='\$LDFLAGS -fopenmp'
+%mex   -DUSE_OMP C:\Git\kwave\software_packages\ValoMC-master\ValoMC-master\cpp\2d\MC2Dmex.cpp COMPFLAGS='\$COMPFLAGS /openmp'
+mex   -DUSE_OMP /home/hghodsi/Software_packages/ValoMC-master/ValoMC-master/cpp/2d/MC2Dmex.cpp COMPFLAGS='\$COMPFLAGS -fopenmp' CXXFLAGS='\$CXXFLAGS -fopenmp' LDFLAGS='\$LDFLAGS -fopenmp'
 for index = 1:average_size
     disp(index)
     % Create the k-Wave grid
@@ -29,16 +33,16 @@ for index = 1:average_size
     % Fibrin_count = 0;
     % average_fibrin_length = round(100e-6/dx);
     % output_mask_vessel = fill_with_RBC(Nx,Ny,vessel_mask,RBC_count_vessel,RBC_radious);
-    output_mask_clot = fill_with_RBC(Nx,Ny,clot_mask,20000,RBC_radious);   % 80%
+    output_mask_clot = fill_with_RBC(Nx,Ny,clot_mask,5000,RBC_radious);   % 80%
     % output_mask_clot = output_mask_clot+fill_with_fibrin(Nx, Ny, clot_mask, Fibrin_count, average_fibrin_length);
     % output_mask_clot(output_mask_clot == 3) = 2;
     disc_indices = find(output_mask_clot==1);
     line_indices = find(output_mask_clot==2);
-    disp(sum(sum(output_mask_clot))/sum(sum(clot_mask)));
-    figure
-    xx = linspace(-Nx*dx/2,+Nx*dx/2,Nx);
-    yy = linspace(-Ny*dy/2,+Ny*dy/2,Ny);
-    imagesc(xx,yy,output_mask_clot);
+    %disp(sum(sum(output_mask_clot))/sum(sum(clot_mask)));
+    %figure
+    %xx = linspace(-Nx*dx/2,+Nx*dx/2,Nx);
+    %yy = linspace(-Ny*dy/2,+Ny*dy/2,Ny);
+    %imagesc(xx,yy,output_mask_clot);
 
     xlabel width(meter)
     ylabel depth(meter)
@@ -121,41 +125,27 @@ for index = 1:average_size
 
 end
 
-%% Plot the solution
+%% process the data
 
-% save k0_65.mat sensor_data
-
-figure
-plot(kgrid.t_array,sensor_data(floor(Ny/2),:))
-xlabel 'simulation  time (s)'
-ylabel 'Single sensor outout(au)'
-title 'sensor output (time domain)'
-grid on
-grid minor
-
-% p_xy = kspaceLineRecon(sensor_data.', dy, kgrid.dt, medium.sound_speed(1,1), 'Plot', true);
-
-figure
 Fs = T/dt;  % Sampling rate in Hz
 N = length(mean(sensor_data,1));
-fft_result = fft(mean(sensor_data));
+fft_r = zeros(1,N);
+for i = 1:Nx
+    disp(i)
+    fft_r(i,:) = exp(-abs(i-250)*1i)*fft(sensor_data(i,:));
+end
+fft_result = mean(fft_r);
 frequencies = (0:N-1) * (Fs / N);
 frequencies = frequencies(1:N/2);
 fft_result = fft_result(1:N/2);
 fft_result = abs(fft_result);
-loglog(frequencies, fft_result);
-title('Frequency Domain Spectrum');
-xlabel('Frequency (Hz)');
-ylabel('Magnitude(a.u.)');
-grid on
-grid minor
 
-% figure
-% plot(T_array,sensor_data)
-% xlabel 'simulation  time (s)'
-% ylabel 'Single sensor outout(au)'
-% title 'sensor output (time domain)'
-% grid on
-% grid minor
+
+
+%% save the output
+
+save k2 frequencies fft_result
+
+
 
 

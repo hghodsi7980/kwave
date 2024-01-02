@@ -3,55 +3,69 @@
 % close all
 % run 10 times and average:
 
-average_size = 1;
-dt =5e-13;   %2MHz
-T = 1e-6;
-T_array = 0:dt:T;
+% addpath(genpath('/home/hghodsi/Software_packages'))
+% addpath(genpath('/home/hghodsi/Matlab_codes'))
+
+simulation_size = 0;
+array_size = 50000;
+T = 4e-6;
+dt = T/array_size;
+T_array = linspace(0,T,array_size);
 % sensor_data_avr = zeros(average_size,size(T_array,2));
 mex   -DUSE_OMP C:\Git\kwave\software_packages\ValoMC-master\ValoMC-master\cpp\2d\MC2Dmex.cpp COMPFLAGS='\$COMPFLAGS /openmp'
-%mex   -DUSE_OMP /home/hghodsi/ValoMC-master/ValoMC-master/cpp/2d/MC2Dmex.cpp COMPFLAGS='\$COMPFLAGS -fopenmp' CXXFLAGS='\$CXXFLAGS -fopenmp' LDFLAGS='\$LDFLAGS -fopenmp'
-for index = 1:average_size
+%mex   -DUSE_OMP /home/hghodsi/Software_packages/ValoMC-master/ValoMC-master/cpp/2d/MC2Dmex.cpp COMPFLAGS='\$COMPFLAGS -fopenmp' CXXFLAGS='\$CXXFLAGS -fopenmp' LDFLAGS='\$LDFLAGS -fopenmp'
+for index = 16:19
     disp(index)
     % Create the k-Wave grid
-    Nx = 500;           % number of grid points in the x (row) direction
-    Ny = 500;           % number of grid points in the y (column) direction
-    dx = 2.5e-6;        % grid point spacing in the x direction [m]
-    dy = 2.5e-6;        % grid point spacing in the y direction [m]
+    Nx = 2000;           % number of grid points in the x (row) direction
+    Ny = 2000;           % number of grid points in the y (column) direction
+    dx = 1e-6;        % grid point spacing in the x direction [m]
+    dy = 1e-6;        % grid point spacing in the y direction [m]
     kgrid = kWaveGrid(Nx, dx, Ny, dy);
     vessel_mask = ones(Nx,Ny);   % all of the ROI for the test
-    clot_radious = round(500e-6/dx);            % clot radius = 250u
+    clot_radious = round(4e-6/dx);            % clot radius = 250u
     clot_mask = makeDisc(Nx,Ny,Nx/2,Ny/2,clot_radious);
-    RBC_radious = round(5e-6/dx);
-    % RBC_ratio_Blood = 0;
+    RBC_radious = round(4e-6/dx);
     RBC_ratio_clot = 0.8;
-    % RBC_count_vessel = round((RBC_ratio_Blood*Nx*Ny)/(pi*RBC_radious^2));
-%     RBC_count_clot = round(RBC_ratio_clot*(pi*clot_radious^2)/(pi*RBC_radious^2));
-    % Fibrin_count = 0;
-    % average_fibrin_length = round(100e-6/dx);
-    % output_mask_vessel = fill_with_RBC(Nx,Ny,vessel_mask,RBC_count_vessel,RBC_radious);
-    output_mask_clot = fill_with_RBC(Nx,Ny,clot_mask,20000,RBC_radious);   % 80%
+    average_fibrin_length = round(100e-6/dx);
+    output_mask_clot = fill_with_RBC(Nx,Ny,clot_mask,0,RBC_radious);
+    Fibrin_count = 0;
     % output_mask_clot = output_mask_clot+fill_with_fibrin(Nx, Ny, clot_mask, Fibrin_count, average_fibrin_length);
-    % output_mask_clot(output_mask_clot == 3) = 2;
+    % output_mask_clot(output_mask_clot == 3) = 1;  % make the overlaps the same as RBC
+    output_mask_clot = clot_mask;
     disc_indices = find(output_mask_clot==1);
     line_indices = find(output_mask_clot==2);
-    disp(sum(sum(output_mask_clot))/sum(sum(clot_mask)));
+    % disp(sum(sum(output_mask_clot())/sum(sum(clot_mask)));
     figure
     xx = linspace(-Nx*dx/2,+Nx*dx/2,Nx);
     yy = linspace(-Ny*dy/2,+Ny*dy/2,Ny);
     imagesc(xx,yy,output_mask_clot);
-
     xlabel width(meter)
     ylabel depth(meter)
+    aspect_ratio = 1;  % Set your desired aspect ratio (width/height)
+    axis equal;        % Set equal scaling along both axes
+    pbaspect([1 aspect_ratio 1]);  % Set the aspect ratio explicitly
+    ax = gca;
+    % Set font size for axes labels and title
+    ax.FontSize = 24;  % Change the font size according to your preference
+    ax.Title.FontSize = 24;  % Font size for the title
+    xlabel('width(meter)', 'FontSize', 24);  % Font size for x-axis label
+    ylabel('depth(meter)', 'FontSize', 24);  % Font size for y-axis label
+
+    map = [0 0 0
+    1 0 0
+    1 1 0];
+    colormap(map);
 
     % Define the acoustic properties
 
-    medium.sound_speed = 1500*ones(Nx, Ny);    % [m/s]
+    medium.sound_speed = 1540*ones(Nx, Ny);    % [m/s]
     medium.sound_speed(disc_indices) = 2380;   % [m/s]
-    medium.sound_speed(line_indices) = 2380;   % [m/s]
+    medium.sound_speed(line_indices) = 1540;   % [m/s]
 
     medium.density = 1025*ones(Nx, Ny);        % [kg/m^3]
-    medium.density(disc_indices) = 1400;
-    medium.density(line_indices) = 1400;
+    medium.density(disc_indices) = 2000;
+    medium.density(line_indices) = 1025;
 
     %% Create a ValoMC mesh
     vmcmesh = createGridMesh(kgrid.y_vec*1e3, kgrid.x_vec*1e3); % [m to mm]
@@ -62,8 +76,8 @@ for index = 1:average_size
     % Define the acoustic properties
     vmcmedium.absorption_coefficient(disc_indices) = 0.2248;
     vmcmedium.scattering_coefficient(disc_indices) = 0.7278;
-    vmcmedium.absorption_coefficient(line_indices) = 22;
-    vmcmedium.scattering_coefficient(line_indices) = 0.1;
+    vmcmedium.absorption_coefficient(line_indices) = 0.1; %% dummmy value
+    vmcmedium.scattering_coefficient(line_indices) = 0.5;  %% dummy value
     vmcmedium.scattering_anisotropy = 0.9678;           % scattering anisotropy parameter [unitless]
     vmcmedium.refractive_index = 1.0*ones(Nx, Ny);
     vmcmedium.refractive_index(line_indices) = 1.602;
@@ -79,9 +93,9 @@ for index = 1:average_size
     line_end = [0 0];
     line_width = 1;
     boundary_with_lightsource = findBoundaries(vmcmesh, 'direction', ...
-                              line_start, ...
-                              line_end,  ...
-                              line_width);
+        line_start, ...
+        line_end,  ...
+        line_width);
     vmcboundary.lightsource(boundary_with_lightsource) = {'gaussian'};
     vmcboundary.lightsource_gaussian_sigma = 0.1;
 
@@ -116,46 +130,34 @@ for index = 1:average_size
     % computation region of k-Wave and ValoMC, the PML is moved outside
     % of the computation region.
     kgrid.dt = dt;
-    kgrid.t_array = 0:dt:T;
+    kgrid.t_array = T_array;
     sensor_data = kspaceFirstOrder2DC(kgrid, medium, source, sensor, 'PMLInside', false);
+    Fs = 1/dt;  % Sampling rate in Hz
+    N = length(mean(sensor_data,1));
+    center_freq = 5e6;
+    bandwidth = 1e7;
+    sensor_data_gaussian = gaussianFilter(sensor_data, Fs, center_freq, bandwidth);
+
+
+
+
+
+    %% process the data
+    % plot(kgrid.t_array,sensor_data(250,:));
+
+    fft_r = zeros(Nx,N/2);
+    for i = 1:Nx
+        disp(i)
+        fft_result = fft(sensor_data_gaussian(i,:));
+        fft_r(i,:) = abs(fft_result(1:N/2));
+    end
+    frequencies = (0:N-1) * (Fs / N);
+    frequencies = frequencies(1:N/2);
+
+    %% save the output
+    file_name = sprintf("Single_RBC%d.mat",1);
+    save(file_name,'frequencies','fft_r','sensor_data','sensor_data_gaussian','output_mask_clot');
+
+    % p_xy = kspaceLineRecon(sensor_data.', dy, kgrid.dt, medium.sound_speed(1,1), 'Plot', true);
 
 end
-
-%% Plot the solution
-
-% save k0_65.mat sensor_data
-
-figure
-plot(kgrid.t_array,sensor_data(floor(Ny/2),:))
-xlabel 'simulation  time (s)'
-ylabel 'Single sensor outout(au)'
-title 'sensor output (time domain)'
-grid on
-grid minor
-
-% p_xy = kspaceLineRecon(sensor_data.', dy, kgrid.dt, medium.sound_speed(1,1), 'Plot', true);
-
-figure
-Fs = T/dt;  % Sampling rate in Hz
-N = length(mean(sensor_data,1));
-fft_result = fft(mean(sensor_data));
-frequencies = (0:N-1) * (Fs / N);
-frequencies = frequencies(1:N/2);
-fft_result = fft_result(1:N/2);
-fft_result = abs(fft_result);
-loglog(frequencies, fft_result);
-title('Frequency Domain Spectrum');
-xlabel('Frequency (Hz)');
-ylabel('Magnitude(a.u.)');
-grid on
-grid minor
-
-% figure
-% plot(T_array,sensor_data)
-% xlabel 'simulation  time (s)'
-% ylabel 'Single sensor outout(au)'
-% title 'sensor output (time domain)'
-% grid on
-% grid minor
-
-
