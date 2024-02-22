@@ -14,21 +14,22 @@ T_array = linspace(0,T,array_size);
 % sensor_data_avr = zeros(average_size,size(T_array,2));
 mex   -DUSE_OMP C:\Git\kwave\software_packages\ValoMC-master\ValoMC-master\cpp\2d\MC2Dmex.cpp COMPFLAGS='\$COMPFLAGS /openmp'
 %mex   -DUSE_OMP /home/hghodsi/Software_packages/ValoMC-master/ValoMC-master/cpp/2d/MC2Dmex.cpp COMPFLAGS='\$COMPFLAGS -fopenmp' CXXFLAGS='\$CXXFLAGS -fopenmp' LDFLAGS='\$LDFLAGS -fopenmp'
-for index = 0:30
+for index = 0:0
     disp(index)
     % Create the k-Wave grid
-    Nx = 2000;           % number of grid points in the x (row) direction
-    Ny = 2000;           % number of grid points in the y (column) direction
-    dx = 1e-6;        % grid point spacing in the x direction [m]
-    dy = 1e-6;        % grid point spacing in the y direction [m]
+    Nx = 1000;           % number of grid points in the x (row) direction
+    Ny = 1000;           % number of grid points in the y (column) direction
+    dx = 5e-7;        % grid point spacing in the x direction [m]
+    dy = 5e-7;        % grid point spacing in the y direction [m]
     kgrid = kWaveGrid(Nx, dx, Ny, dy);
     vessel_mask = ones(Nx,Ny);   % all of the ROI for the test
-    clot_radious = round(250e-6/dx);            % clot radius = 250u
+    clot_radious = round(20e-6/dx);            % clot radius = 250u
     clot_mask = makeDisc(Nx,Ny,Nx/2,Ny/2,clot_radious);
     RBC_radious = round(4e-6/dx);
     RBC_ratio_clot = 0.8;
     average_fibrin_length = round(100e-6/dx);
-    output_mask_clot = fill_with_RBC(Nx,Ny,clot_mask,index*500+50,RBC_radious);
+    % output_mask_clot = fill_with_RBC(Nx,Ny,clot_mask,index*500+50,RBC_radious);
+    output_mask_clot = clot_mask;
     Fibrin_count = 0;
     % output_mask_clot = output_mask_clot+fill_with_fibrin(Nx, Ny, clot_mask, Fibrin_count, average_fibrin_length);
     % output_mask_clot(output_mask_clot == 3) = 1;  % make the overlaps the same as RBC
@@ -42,7 +43,7 @@ for index = 0:30
     xlabel width(meter)
     ylabel depth(meter)
     axis equal;        % Set equal scaling along both axes
-    pbaspect([1 aspect_ratio 1]);  % Set the aspect ratio explicitly
+    pbaspect([1 1 1]);  % Set the aspect ratio explicitly
     ax = gca;
     % Set font size for axes labels and title
     ax.FontSize = 24;  % Change the font size according to your preference
@@ -129,7 +130,7 @@ for index = 0:30
     % of the computation region.
     kgrid.dt = dt;
     kgrid.t_array = T_array;
-    sensor_data = kspaceFirstOrder2DC(kgrid, medium, source, sensor, 'PMLInside', false);
+    sensor_data = kspaceFirstOrder2DG(kgrid, medium, source, sensor, 'PMLInside', false);
     Fs = 1/dt;  % Sampling rate in Hz
     N = length(mean(sensor_data,1));
     center_freq = 5e6;
