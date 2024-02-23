@@ -10,12 +10,10 @@ function output_mask = fill_with_RBC(Nx, Ny, filling_mask, RBC_count, RBC_radius
 
     [center_x, center_y] = find(filling_mask);
     available_coords = [center_x, center_y];
-    
+    h = waitbar(0, 'Progress'); % Create a progress bar window
     for k = 1:RBC_count
-%         if isempty(available_coords)
-%             break; % No more available coordinates
-%         end
-        disp(k*100/RBC_count)
+        waitbar(k / RBC_count, h, sprintf('Fill with RBC Progress: %d%%', round(k*100/RBC_count)));
+        pause(0.1); % Optional: Add a delay to slow down the progress for demonstration purposes
         % Randomly select an available coordinate
         random_index = randi(size(available_coords, 1));
         center_x = available_coords(random_index, 1);
@@ -37,4 +35,5 @@ function output_mask = fill_with_RBC(Nx, Ny, filling_mask, RBC_count, RBC_radius
             end
         end
     end
+    close(h);
 end

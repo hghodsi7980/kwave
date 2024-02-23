@@ -47,17 +47,21 @@ for i = 1:length(fileList)
     feature_struct(i).value(3*num_vib_modes+1) = f.p1;
     temp_matrix = output_mask_clot;
     temp_matrix(temp_matrix ~=0 ) = 1;
-    ss= find(temp_matrix(Nx/2,:));
-    size = 1000*(ss(end)-ss(1))/Nx;
     feature_struct(i).feature(3*num_vib_modes+2,1:length('Size')) = 'Size';
-    feature_struct(i).value(3*num_vib_modes+2) = size;
+    feature_struct(i).value(3*num_vib_modes+2) = clot_radious;
     feature_struct(i).feature(3*num_vib_modes+3,1:length('Freq_shift')) = 'Freq_shift';
     frequency_shift = sum(frequencies.*Spectrum)/sum(frequencies);
     feature_struct(i).value(3*num_vib_modes+3) =  frequency_shift;
     % Outputs 
     output_struct(i).parameter(1,1:length('Porosity')) = 'Porosity';
     output_struct(i).parameter(2,1:length('Fibrin_ratio')) = 'Fibrin_ratio';
-    porosity = 100*(1-(sum(sum(temp_matrix))/(pi*(ss(end)-ss(1))^2)));
+    porosity = 100*(1-(sum(sum(temp_matrix))/(pi*(clot_radious/dx)^2)));
+    if porosity > 100
+        porosity = 100;
+    end
+    if porosity < 0
+        porosity = 0;
+    end
     fibrin = sum(sum(output_mask_clot(output_mask_clot == 2)));
     rbc = sum(sum(output_mask_clot(output_mask_clot == 1)));
     fibrin_ratio = 100*fibrin/(fibrin+rbc);
