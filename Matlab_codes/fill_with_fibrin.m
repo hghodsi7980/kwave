@@ -9,12 +9,12 @@ h = waitbar(0, 'Progress'); % Create a progress bar window
 for k = 1:Fibrin_count
 
     waitbar(k / Fibrin_count, h, sprintf('Fill with Fibrin Progress: %d%%', round(k*100/Fibrin_count)));
-    pause(0.1); % Optional: Add a delay to slow down the progress for demonstration purposes
+    % pause(0.1); % Optional: Add a delay to slow down the progress for demonstration purposes
     % Randomly select a position within the filling_mask
     [x, y] = find(filling_mask);
     random_index = randi(length(x));
-    start_x = x(random_index);
-    start_y = y(random_index);
+    start_x = x(random_index)+randi([-95 95]);
+    start_y = y(random_index)+randi([-95 95]);
 
     % Randomly generate a length between 1 and max_fibrin_length
     fibrin_length = max(1, round(rand() * max_fibrin_length));
@@ -27,10 +27,10 @@ for k = 1:Fibrin_count
     end_y = start_y + round(fibrin_length * sin(angle));
 
     % Ensure that the line stays within the boundaries
-    start_x = max(1, min(Nx, start_x));
-    start_y = max(1, min(Ny, start_y));
-    end_x = max(1, min(Nx, end_x));
-    end_y = max(1, min(Ny, end_y));
+    % start_x = max(1, min(Nx, start_x));
+    % start_y = max(1, min(Ny, start_y));
+    % end_x = max(1, min(Nx, end_x));
+    % end_y = max(1, min(Ny, end_y));
 
     % Create the line by drawing pixels between start and end points
     x_values = linspace(start_x, end_x, fibrin_length);
@@ -39,9 +39,9 @@ for k = 1:Fibrin_count
     for i = 1:fibrin_length
         x = round(x_values(i));
         y = round(y_values(i));
-        if filling_mask(x, y)
-            output_mask(x, y) = 2;
-        end
+        % if filling_mask(x, y)
+        output_mask(x, y) = 2;
+        % end
     end
 end
 close(h);

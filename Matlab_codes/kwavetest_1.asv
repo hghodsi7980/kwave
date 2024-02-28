@@ -12,10 +12,12 @@ T = 3e-6;
 dt = T/array_size;
 T_array = linspace(0,T,array_size);
 % sensor_data_avr = zeros(average_size,size(T_array,2));
-mex   -DUSE_OMP C:\Git\kwave\software_packages\ValoMC-master\ValoMC-master\cpp\2d\MC2Dmex.cpp COMPFLAGS='\$COMPFLAGS /openmp'
+% mex   -DUSE_OMP C:\Git\kwave\software_packages\ValoMC-master\ValoMC-master\cpp\2d\MC2Dmex.cpp COMPFLAGS='\$COMPFLAGS /openmp'
 %mex   -DUSE_OMP /home/hghodsi/Software_packages/ValoMC-master/ValoMC-master/cpp/2d/MC2Dmex.cpp COMPFLAGS='\$COMPFLAGS -fopenmp' CXXFLAGS='\$CXXFLAGS -fopenmp' LDFLAGS='\$LDFLAGS -fopenmp'
-for index = 0:1000
-    disp(index)
+for index = 1:1000
+    h = waitbar(0, 'Progress'); % Create a progress bar window
+    waitbar(index / 1000, h, sprintf('Overall Progress: %d%%', round((index / 1000) * 100)));
+    pause(0.1); % Optional: Add a delay to slow down the progress for demonstration purposes
     % Create the k-Wave grid
     Nx = 2000;           % number of grid points in the x (row) direction
     Ny = 2000;           % number of grid points in the y (column) direction
@@ -27,13 +29,17 @@ for index = 0:1000
     clot_radious = 1e-4+4e-4*rand();            % clot radius between 100 and 500
     clot_mask = makeDisc(Nx,Ny,Nx/2,Ny/2,round(clot_radious/dx));
     RBC_radious = round(4e-6/dx);
-    C = 1e10;
-    RBC_count = C*clot_radious*rand();  
-    Fibrin_count = C*clot_radious*rand(); 
+    C = 3e7; %arbitrary constant
+    random_number = exprnd(1,1);
+    random_number = abs(8-random_number)/8;
+    RBC_count = C*clot_radious*random_number;
+    random_number = exprnd(1,1);
+    random_number = abs(8-random_number)/8;
+    Fibrin_count = C*clot_radious*random_number; 
     average_fibrin_length = round(100e-6/dx);
     output_mask_clot = fill_with_RBC(Nx,Ny,clot_mask,RBC_count,RBC_radious);
     output_mask_clot = output_mask_clot+fill_with_fibrin(Nx, Ny, clot_mask, Fibrin_count, average_fibrin_length);
-    output_mask_clot(output_mask_clot == 3) = 2;  % make the overlaps the same as Fibrin
+    output_mask_clot(output_mask_clot == 3) = 1;  % make the overlaps the same as RBC 
     disc_indices = find(output_mask_clot==1);
     line_indices = find(output_mask_clot==2);
     medium.sound_speed = 1540*ones(Nx, Ny);    % [m/s]
@@ -133,8 +139,9 @@ for index = 0:1000
 
     %% save the output
     file_name = sprintf("New_data%d.mat",index);
-    save(file_name,'frequencies','fft_r','output_mask_clot', "clot_radious", "dx" , "dy" , "dt");
+    save(file_name,'frequencies','fft_r','output_mask_clot', "dx" , "dy" , "dt");
 
     % p_xy = kspaceLineRecon(sensor_data.', dy, kgrid.dt, medium.sound_speed(1,1), 'Plot', true);
 
+close(h);
 end
