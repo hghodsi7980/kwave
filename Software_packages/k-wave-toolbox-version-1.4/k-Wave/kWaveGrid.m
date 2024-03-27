@@ -782,10 +782,10 @@ classdef kWaveGrid < handle
             % there is always a DC component
             if rem(Nx, 2) == 0
                 % grid dimension has an even number of points
-                nx = ((-Nx/2:Nx/2-1)/Nx).';
+                nx = single(((-Nx/2:Nx/2-1)/Nx).');
             else
                 % grid dimension has an odd number of points
-                nx = ((-(Nx-1)/2:(Nx-1)/2)/Nx).';
+                nx = single(((-(Nx-1)/2:(Nx-1)/2)/Nx).');
             end
 
             % force middle value to be zero in case 1/Nx is a recurring

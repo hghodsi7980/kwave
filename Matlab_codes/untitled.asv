@@ -1,0 +1,105 @@
+clear
+close all
+
+% Define constants for RBCs
+d = 8e-6; % in meters
+b = 1e-6; % in meters
+h = 2.12e-6; % in meters
+
+% Calculate P, Q, and R for RBCs
+P = -(d^2/2) + (h^2/2) * ((d^2/b^2) - 1) - h^2/2 * ((d^2/b^2) - 1) * sqrt(1 - (b^2/h^2));
+Q = P * (d^2/b^2) + (b^2/4) * (d^4/b^4 - 1);
+R = -P * (d^2/4) - d^4/16;
+
+% Area and number of RBCs
+num_cells = 20;
+
+% Initialize RBC positions and orientations
+cell_positions = zeros(num_cells, 3);
+cell_rotations = zeros(num_cells, 3);
+
+% Define the area for RBCs
+min_x = -8e-5;
+max_x = 8e-5;
+min_y = -8e-5;
+max_y = 8e-5;
+min_z = -8e-5;
+max_z = 8e-5;
+
+% Define resolution for RBCs
+Nx = 500;
+Ny = 500;
+Nz = 500;
+
+dx = (max_x-min_x)/Nx;
+dy = (max_x-min_x)/Ny;
+dz = (max_x-min_x)/Nz;
+
+% Generate grid for RBCs
+[x, y, z] = meshgrid(linspace(min_x, max_x, Nx), linspace(min_y, max_y, Ny), linspace(min_z, max_z, Nz));
+
+% Initialize RBC volume
+RBC_volume = zeros(size(x));
+
+% Generate RBCs
+for i = 1:num_cells
+    cell_positions(i, :) = rand(1, 3) .* [max_x - min_x, max_y - min_y, max_z - min_z] + [min_x, min_y, min_z];
+    cell_rotations(i, :) = rand(1, 3) * pi;
+end
+
+% Generate RBC volume
+for i = 1:num_cells
+    % Compute transformed coordinates for RBCs
+    x_rot = x;
+    y_rot = y;
+    z_rot = z;
+
+    % Apply rotations for RBCs
+    x_temp = x_rot;
+    x_rot = x_temp * cos(cell_rotations(i, 1)) - z_rot * sin(cell_rotations(i, 1));
+    z_rot = x_temp * sin(cell_rotations(i, 1)) + z_rot * cos(cell_rotations(i, 1));
+
+    y_temp = y_rot;
+    y_rot = y_temp * cos(cell_rotations(i, 2)) + z_rot * sin(cell_rotations(i, 2));
+    z_rot = -y_temp * sin(cell_rotations(i, 2)) + z_rot * cos(cell_rotations(i, 2));
+
+    x_temp = x_rot;
+    x_rot = x_temp * cos(cell_rotations(i, 3)) - y_rot * sin(cell_rotations(i, 3));
+    y_rot = x_temp * sin(cell_rotations(i, 3)) + y_rot * cos(cell_rotations(i, 3));
+
+    % Compute equation for RBCs
+    eq = ((x_rot - cell_positions(i, 1)).^2 + (y_rot - cell_positions(i, 2)).^2 + (z_rot - cell_positions(i, 3)).^2).^2 ...
+        + P * ((x_rot - cell_positions(i, 1)).^2 + (y_rot - cell_positions(i, 2)).^2) ...
+        + Q * (z_rot - cell_positions(i, 3)).^2 + R;
+
+    % Update RBC volume
+    RBC_volume(eq <= 0) = 1;
+end
+
+% Perform Delaunay triangulation on RBC positions
+tri = delaunayTriangulation(cell_positions);
+
+% Calculate Voronoi regions based on the triangulation
+[v, c] = voronoiDiagram(tri);
+
+% Visualize the regions
+figure;
+hold on;
+
+% Plot the RBCs
+scatter3(cell_positions(:,1), cell_positions(:,2), cell_positions(:,3), 'r', 'filled');
+
+% Plot the Voronoi regions
+for k = 1:size(c, 1)
+    voronoi_segment = c{k};
+    if all(voronoi_segment ~= 1)
+        patch(v(voronoi_segment, 1), v(voronoi_segment, 2), v(voronoi_segment, 3), 'b', 'FaceAlpha', 0.3);
+    end
+end
+
+xlabel('X');
+ylabel('Y');
+zlabel('Z');
+axis equal;
+grid on;
+hold off;
