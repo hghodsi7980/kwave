@@ -49,9 +49,9 @@ hold off;
  
 % Create a finer mesh
 
-x_arr = -2:0.01:2;
-y_arr = -2:0.01:2;
-z_arr = -2:0.01:2;
+x_arr = -2:0.1:2;
+y_arr = -2:0.1:2;
+z_arr = -2:0.1:2;
 
 vmcmesh = createGridMesh(x_arr, y_arr, z_arr); % function provided by ValoMC
 vmcmedium = createMedium(vmcmesh);

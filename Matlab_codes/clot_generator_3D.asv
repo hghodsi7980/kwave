@@ -1,4 +1,4 @@
-for index = 1:1
+for index = 20:30
     clearvars('-except', 'index');
     close all
     hold on
@@ -260,7 +260,7 @@ for index = 1:1
     coordinates = all_coordinates_sorted(:,1:3);
     materials = all_coordinates_sorted(:,4);
 
-    % safe distance from the boundaries in um 
+    % safe distance from the boun 
     distance_to_boundary = 50; 
 
     % Define the size of the mesh space

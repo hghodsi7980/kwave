@@ -31,9 +31,8 @@ medium.density(Fibrin_indices) = 2000;
 medium.density(Platelet_indices) = 2000;
 vmcmesh = createGridMesh(kgrid.x_vec*1e3, kgrid.y_vec*1e3, kgrid.z_vec*1e3); % [m to mm]
 vmcmedium = createMedium(vmcmesh);
-scattering_coefficients = 0.0001*ones(Nx, Ny, Nz);
-absorption_coefficients = 0.0001*ones(Nx, Ny, Nz);
-scattering_anisotropies = 0.9678*ones(Nx, Ny, Nz);
+scattering_coefficients = single(0.0001*ones(Nx, Ny, Nz));
+absorption_coefficients = single(0.0001*ones(Nx, Ny, Nz));
 refractive_indexes = ones(Nx, Ny, Nz);
 absorption_coefficients(RBC_indices) = 22.48;
 scattering_coefficients(RBC_indices) = 72.78;
@@ -44,10 +43,12 @@ scattering_coefficients(Platelet_indices) = 72.78; %% dummmy value
 refractive_indexes(Fibrin_indices) = 1.4;
 refractive_indexes(Platelet_indices) = 1.4;
 refractive_indexes(RBC_indices) = 1.4;
-vmcmedium.scattering_anisotropy =  repmat(scattering_anisotropies(:),6,1);
-vmcmedium.absorption_coefficient = repmat(absorption_coefficients(:),6,1);
-vmcmedium.scattering_coefficient = repmat(scattering_coefficients(:),6,1);
-vmcmedium.refractive_index = repmat(scattering_coefficients(:),6,1);
+vmcmedium.scattering_anisotropy = 0.9678;
+vmcmedium.gruneisen_parameter = 0.16;      % [unitless]
+vmcmedium.absorption_coefficient = repmat(bsorption_coefficients(:),6,1);
+
+
+
 line_start = [0 0 ceil(-3/5*Nz)];
 line_end = [0  0 0];
 line_width = 10;
@@ -56,7 +57,7 @@ vmcboundary.lightsource(boundary_with_lightsource) = {'gaussian'};
 vmcboundary.lightsource_gaussian_sigma = 0.1;
 solution = ValoMC(vmcmesh, vmcmedium, vmcboundary);
 vmcmedium.absorbed_energy = vmcmedium.absorption_coefficient .* solution.grid_fluence*1e3; % [J/m3]
-gruneisen_parameter = 0.16;      % [unitless]
+
 
 % % % 
 % % %     vessel_mask = ones(Nx,Ny);   % all of the ROI for the test

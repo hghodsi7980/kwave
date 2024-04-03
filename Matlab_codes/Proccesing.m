@@ -2,7 +2,7 @@ feature_size = 18;
 num_vib_modes = 5;
 output_size = 2;
 % Define the folder containing the .mat files
-folder = 'C:\Git\kwave\Simulation_data\'; % Update this with your folder path
+folder = 'C:\GitHub\kwave\Simulation_data\'; % Update this with your folder path
 
 % Get a list of all .mat files in the folder
 fileList = dir(fullfile(folder, '*.mat'));
@@ -23,7 +23,7 @@ for i = 1:length(fileList)
     Nx = size(output_mask_clot,1);
     Ny = size(output_mask_clot,2);
     frequencies = frequencies(1:150);
-    Spectrum = fft_r(Nx/2,1:150);
+    Spectrum = spectrum(1:150);
     Spectrum = Spectrum/sum(Spectrum);
     [peaks, indexes] = findpeaks(Spectrum);
     freqs = frequencies(indexes);
