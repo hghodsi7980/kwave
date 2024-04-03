@@ -39,8 +39,11 @@ for index = 1:1
     % % trisurf(C,DT.Points(:,1),DT.Points(:,2),DT.Points(:,3), ...
     % % 'EdgeColor','black','FaceColor','none')
 
+    % minumum number of internal points  
+    min_points = 1000; 
+
     % Set of coordinates to check
-    number_of_overall_points = round(max([a,b,c])*4*abs((3+randn())));
+    number_of_overall_points = round(max(max([a,b,c])*4*abs((3+randn())),min_points));
     concentration_factor = 0.7;
     % Calculate the center point of the surface
     center_point = [mean(DT.Points(C, 1)), mean(DT.Points(C, 2)), mean(DT.Points(C, 3))];
