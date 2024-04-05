@@ -4,8 +4,8 @@ close all
 clear
 
 mex   -DUSE_OMP C:\GitHub\kwave\software_packages\ValoMC-master\ValoMC-master\cpp\3d\MC3Dmex.cpp COMPFLAGS='\$COMPFLAGS /openmp'
+
 load mesh_space_1.mat
-mesh_space = double(mesh_space(round(end/4):round(3*end/4),round(end/4):round(3*end/4),round(end/4):round(3*end/4)));
 array_size = 50000;
 T = 3e-6;
 dt = T/array_size;
@@ -35,8 +35,8 @@ scattering_coefficients = 0.0001*ones(Nx, Ny, Nz);
 absorption_coefficients = 0.0001*ones(Nx, Ny, Nz);
 scattering_anisotropies = 0.9678*ones(Nx, Ny, Nz);
 refractive_indexes = ones(Nx, Ny, Nz);
-absorption_coefficients(RBC_indices) = 22.48;
-scattering_coefficients(RBC_indices) = 72.78;
+absorption_coefficients(RBC_indices) = 1e-4;
+scattering_coefficients(RBC_indices) = 1e-4;
 absorption_coefficients(Fibrin_indices) = 5; %% dummmy value
 scattering_coefficients(Fibrin_indices) = 72.78; %% dummmy value
 absorption_coefficients(Platelet_indices) = 5; %% dummmy value 
@@ -47,16 +47,32 @@ refractive_indexes(RBC_indices) = 1.4;
 vmcmedium.scattering_anisotropy =  repmat(scattering_anisotropies(:),6,1);
 vmcmedium.absorption_coefficient = repmat(absorption_coefficients(:),6,1);
 vmcmedium.scattering_coefficient = repmat(scattering_coefficients(:),6,1);
-vmcmedium.refractive_index = repmat(scattering_coefficients(:),6,1);
-line_start = [0 0 ceil(-3/5*Nz)];
-line_end = [0  0 0];
-line_width = 10;
-boundary_with_lightsource = findBoundaries(vmcmesh, 'direction', line_start, line_end, line_width);
-vmcboundary.lightsource(boundary_with_lightsource) = {'gaussian'};
-vmcboundary.lightsource_gaussian_sigma = 0.1;
+vmcmedium.refractive_index = repmat(refractive_indexes(:),6,1);
+vmcboundary = createBoundary(vmcmesh, vmcmedium);   % create a boundary for the mesh
+% Create a light source
+lightsource = findBoundaries(vmcmesh, 'direction', [0 0 0], [0 0 10], 10);
+vmcboundary.lightsource(lightsource) = {'cosinic'};
 solution = ValoMC(vmcmesh, vmcmedium, vmcboundary);
-vmcmedium.absorbed_energy = vmcmedium.absorption_coefficient .* solution.grid_fluence*1e3; % [J/m3]
-gruneisen_parameter = 0.16;      % [unitless]
+TR = triangulation(double(vmcmesh.H),vmcmesh.r); 
+locations = [X(:) Y(:) Z(:)];           
+indices = pointLocation(TR,locations);     
+indices(isnan(indices)) = 1;             
+grid_fluence = reshape(solution.element_fluence(indices),size(X));
+slice(X, Y, Z, grid_fluence, 0, 0, 0);
+xlabel('x [mm]');
+ylabel('y [mm]');
+zlabel('z [mm]');
+
+view(125,25);
+snapnow;
+% % % line_start = [0 0 ceil(-3/5*Nz)];
+% % % line_end = [0  0 0];
+% % % line_width = 10;
+% % % boundary_with_lightsource = findBoundaries(vmcmesh, 'direction', line_start, line_end, line_width);
+% % % vmcboundary.lightsource(boundary_with_lightsource) = {'gaussian'};
+% % % vmcboundary.lightsource_gaussian_sigma = 0.1;
+% % % solution = ValoMC(vmcmesh, vmcmedium, vmcboundary);
+
 
 % % % 
 % % %     vessel_mask = ones(Nx,Ny);   % all of the ROI for the test
