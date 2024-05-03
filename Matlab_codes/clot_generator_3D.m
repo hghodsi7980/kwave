@@ -1,4 +1,4 @@
-for index = 1:1
+for index = 1038:2000
     clearvars('-except', 'index');
     close all
     hold on
@@ -9,9 +9,9 @@ for index = 1:1
     numPoints = 5000; % Adjust as needed
 
     % Define clot size um
-    a = round(max(200, normrnd(250,75))); % Semi-axis length along x-axis
-    b = round(max(200, normrnd(250,75))); % Semi-axis length along y-axis
-    c = round(max(200, normrnd(250,75))); % Semi-axis length along z-axis
+    a = round(max(20, abs(normrnd(75,25)))); % Semi-axis length along x-axis
+    b = round(max(20, abs(normrnd(75,25)))); % Semi-axis length along y-axis
+    c = round(max(20, abs(normrnd(75,25)))); % Semi-axis length along z-axis
 
     displacementFactor = 1; % Control parameter for randomness
 
@@ -34,39 +34,43 @@ for index = 1:1
     DT = delaunayTriangulation(x, y, z);
 
     % Calculate the convex hull
-    [C,v] = convexHull(DT);
+    [C,volume] = convexHull(DT);
 
     % % trisurf(C,DT.Points(:,1),DT.Points(:,2),DT.Points(:,3), ...
     % % 'EdgeColor','black','FaceColor','none')
 
-    % minumum number of internal points  
-    min_points = 1000; 
+    % minumum number of internal points
+    min_points = 1000;
 
     % Set of coordinates to check
-    number_of_overall_points = round(max(max([a,b,c])*4*abs((3+randn())),min_points));
-    concentration_factor = 0.7;
-    % Calculate the center point of the surface
-    center_point = [mean(DT.Points(C, 1)), mean(DT.Points(C, 2)), mean(DT.Points(C, 3))];
-    x_center = center_point(1);
-    y_center = center_point(2);
-    z_center = center_point(3);
-    % The points on the surface
-    Points = DT.Points(C,:);
+    number_of_overall_points = round(max(max([a,b,c])*30*abs((3+randn())),min_points));
+    % number of clusters
+    num_clusters = max([5 randi(100)]);
+    % Generate random coordinates for cluster centers within the specified range
+    cluster_centers = DT.Points;
+    num_points_to_exclude = size(DT.Points,1)-num_clusters;
+    indices_to_exclude = randperm(size(cluster_centers, 1), num_points_to_exclude);
+    cluster_centers(indices_to_exclude, :) = [];
+    % Define bandwidth for Gaussian kernel (controls the spread)
+    bandwidth = 1000/num_clusters; % adjust as needed
 
-    x_gaussian = normrnd(x_center, concentration_factor*a, number_of_overall_points, 1); % Adjust standard deviation as needed
-    y_gaussian = normrnd(y_center, concentration_factor*b, number_of_overall_points, 1);
-    z_gaussian = normrnd(z_center, concentration_factor*c, number_of_overall_points, 1);
-    coordinates_to_check = [x_gaussian,y_gaussian,z_gaussian];
+    % Generate points using KDE around each cluster center
+    coordinates_to_check = [];
+    for i = 1:num_clusters
+        % Generate points around each cluster center using Gaussian kernel
+        cluster_points = mvnrnd(cluster_centers(i, :), bandwidth^2 * eye(3), round(number_of_overall_points/num_clusters));
+        coordinates_to_check = [coordinates_to_check; cluster_points];
+    end
     % Check if points are inside or on the surface
     in_or_on_ellipsoid = ~isnan(pointLocation(DT, coordinates_to_check));
 
     % Choose the inside points
     inside_points = coordinates_to_check(in_or_on_ellipsoid, :);
     % Add inside points to the surface points
-    Points = [Points;inside_points];
+    Points = inside_points;
     Points = unique(Points, 'rows');
-    % scatter3(Points(:,1),Points(:,2),Points(:,3),'filled','g')
-    % Create Delaunay triangulation
+    % scatter3(Points(:,1),Points(:,2),Points(:,3),'.','r')
+    %Create Delaunay triangulation
     DT_inside = delaunayTriangulation(Points);
 
     % Get edge list
@@ -76,7 +80,7 @@ for index = 1:1
     edge_lengths = sqrt(sum((DT_inside.Points(edges(:, 1), :) - DT_inside.Points(edges(:, 2), :)).^2, 2));
 
     % Set distance threshold (adjust as needed)
-    distance_threshold = 15; % You can adjust this threshold to control density
+    distance_threshold = 5; % You can adjust this threshold to control density
 
     % Calculate probability of edge removal based on distance
     remove_probabilities = 1 - exp(-edge_lengths / distance_threshold);
@@ -84,20 +88,21 @@ for index = 1:1
     CC = conncomp(G);
     degree_cent = G.centrality("degree");
     mean_rank = mean(degree_cent);
-    mean_rank_best = 3.5;
+    mean_rank_best = 3;
     std_rank = std(degree_cent);
     num_edges_init = size(edges,1);
     remaining_edges = edges;
+    min_length = calculate_min_distance(Points,volume);
     for i = 1:num_edges_init
         ind = find(remaining_edges== edges(i,:), 1 );
-        if rand() < remove_probabilities(i)
+        if rand() < remove_probabilities(i) || edge_lengths(i) >= min_length
             G_i = graph(remaining_edges([1:ind-1, ind+1:end],1),remaining_edges([1:ind-1, ind+1:end],2));
             CC_i = conncomp(G_i);
             degree_cent_i = G_i.centrality("degree");
             mean_rank_i = mean(degree_cent_i);
             std_rank_i = std(degree_cent_i);
-            if max(CC) == max(CC_i) && (abs(mean_rank_i-mean_rank_best) <= abs(mean_rank-mean_rank_best) ...
-                    || std_rank_i < std_rank ) && min(degree_cent_i) > 2
+            if (max(CC) == max(CC_i) && (abs(mean_rank_i-mean_rank_best) <= abs(mean_rank-mean_rank_best) ...
+                    || std_rank_i < std_rank) && min(degree_cent_i) > 2) || edge_lengths(i) >= min_length
                 remaining_edges = remaining_edges([1:ind-1, ind+1:end],:);
                 G = graph(remaining_edges(:,1),remaining_edges(:,2));
                 CC = conncomp(G);
@@ -125,7 +130,7 @@ for index = 1:1
         end
         % Append interpolated points to line_coordinates
         line_coordinates = [line_coordinates; interp_pts];
-        plot3([start_point(1), end_point(1)], [start_point(2), end_point(2)], [start_point(3), end_point(3)], 'b');
+        plot3(interp_pts(:,1),interp_pts(:,2),interp_pts(:,3),'b')
         pause(1e-12);
     end
     % Generate material indices for each point
@@ -157,14 +162,14 @@ for index = 1:1
     % Generate waitbar
     holder = waitbar(0, 'Progress RBC'); % Create a progress bar window
     % Loop through each tetrahedron
+    RBC_filling_factor = abs(normrnd(0,0.25));
     for i = 1:size(tetrahedra_with_remaining_edges, 1)
         v = tetrahedra_with_remaining_edges(i, :);
         % Update waitbar
         waitbar(i / size(tetrahedra_with_remaining_edges, 1), holder, sprintf('Progress RBC: %d%%',round((i / size(tetrahedra_with_remaining_edges, 1)) * 100)));
-        % Compute centroid (center point) of the tetrahedron
         center_point_t = mean(Points(v, :), 1);
-        distance_to_origin = sqrt(sum((center_point_t-center_point).^2));
-        show_RBC = abs((distance_to_origin/concentration_factor)*randn()) <= max([a, b, c]);
+        show_RBC = (rand < RBC_filling_factor) ...
+            & (tetrahedron_volume(Points(v(1),:),Points(v(2),:),Points(v(3),:),Points(v(4),:)) > 90);
         if show_RBC
             % Define constants for RBCs
             d = 8; % in meters
@@ -219,7 +224,7 @@ for index = 1:1
     close(holder);
 
     % Randomly exclude some points
-    exclude_percentage_platelet = rand()*0.5;
+    exclude_percentage_platelet = rand();
     num_points_to_exclude = round(exclude_percentage_platelet * size(Points, 1));
     indices_to_exclude = randperm(size(Points, 1), num_points_to_exclude);
     Points(indices_to_exclude, :) = [];
@@ -263,8 +268,8 @@ for index = 1:1
     coordinates = all_coordinates_sorted(:,1:3);
     materials = all_coordinates_sorted(:,4);
 
-    % safe distance from the boundaries in um 
-    distance_to_boundary = 50; 
+    % safe distance from the boundaries in um
+    distance_to_boundary = 50;
 
     % Define the size of the mesh space
     mesh_size_x = round(max(coordinates(:,1))-min(coordinates(:,1)))+2*distance_to_boundary;  %-+50um safe distance from boundary
@@ -302,6 +307,26 @@ for index = 1:1
     end
 
     % Save the mesh space to a file
-    save(sprintf('mesh_space_%d.mat',index), 'mesh_space', '-v7.3');
+    save(sprintf('mesh_space_%d.mat',index), 'mesh_space','volume', '-v7.3');
     savefig(sprintf('clot_%d.fig',index));
+end
+
+function volume = tetrahedron_volume(A, B, C, D)
+% Calculate vectors
+AB = B - A;
+AC = C - A;
+AD = D - A;
+
+% Calculate scalar triple product
+triple_product = dot(AB, cross(AC, AD));
+
+% Calculate volume
+volume = abs(triple_product) / 6;
+end
+
+function mean_distance = calculate_min_distance(coordinates,volume) 
+num_points = size(coordinates,1);
+num_points_per_dimension_mean = num_points^(1/3);
+dimension_mean = volume^(1/3);
+mean_distance = dimension_mean/num_points_per_dimension_mean;
 end
