@@ -1,31 +1,46 @@
-for index = 1038:2000
+for index = 2500
+    tic
+    % Clear all variables except 'index'
     clearvars('-except', 'index');
     close all
-    hold on
-    grid on
-    grid minor
+    disp((index-2000)*100/2000);
+
+    % Set the random seed for reproducibility
+    fixed_seed = 42;  % Choose a fixed seed value
+    rng(fixed_seed + index);  % Randomize the seed in each iteration based on index
+
+    % Create a new figure and axes
+    fig = figure;
+    ax = axes(fig);
+
+    % Set axes background to black and axis lines to white
+    set(ax, 'Color', 'none');
+    set(ax, 'XColor', 'none', 'YColor', 'none', 'ZColor', 'none');
+    view(125, 25);
     axis equal
+
     % Parameters
-    numPoints = 5000; % Adjust as needed
+    numPoints = 5000; % Number of points on ellipsoid surface
+    a = round(max(20, abs(normrnd(75, 25))));
+    b = round(max(20, abs(normrnd(75, 25))));
+    c = round(max(20, abs(normrnd(75, 25))));
 
-    % Define clot size um
-    a = round(max(20, abs(normrnd(75,25)))); % Semi-axis length along x-axis
-    b = round(max(20, abs(normrnd(75,25)))); % Semi-axis length along y-axis
-    c = round(max(20, abs(normrnd(75,25)))); % Semi-axis length along z-axis
+    % Random displacement factors
+    displacementFactor_x = 1 + 0.5 * rand();
+    displacementFactor_y = 1 + 0.5 * rand();
+    displacementFactor_z = 1 + 0.5 * rand();
 
-    displacementFactor = 1; % Control parameter for randomness
-
-    % Generate random points on the surface of an ellipsoid
-    theta = 2*pi*rand(numPoints, 1);
-    phi = pi*rand(numPoints, 1);
+    % Generate random points on ellipsoid surface
+    theta = 2 * pi * rand(numPoints, 1);
+    phi = pi * rand(numPoints, 1);
     x_ellipsoid = a * sin(phi) .* cos(theta);
     y_ellipsoid = b * sin(phi) .* sin(theta);
     z_ellipsoid = c * cos(phi);
 
     % Add random displacement
-    x_displacement = displacementFactor *a*(rand(numPoints, 1));
-    y_displacement = displacementFactor *b*(rand(numPoints, 1));
-    z_displacement = displacementFactor *c*(rand(numPoints, 1));
+    x_displacement = displacementFactor_x * a * rand(numPoints, 1);
+    y_displacement = displacementFactor_y * b * rand(numPoints, 1);
+    z_displacement = displacementFactor_z * c * rand(numPoints, 1);
     x = x_ellipsoid + x_displacement;
     y = y_ellipsoid + y_displacement;
     z = z_ellipsoid + z_displacement;
@@ -33,248 +48,382 @@ for index = 1038:2000
     % Create Delaunay triangulation
     DT = delaunayTriangulation(x, y, z);
 
-    % Calculate the convex hull
-    [C,volume] = convexHull(DT);
+    % Calculate convex hull
+    [C, volume] = convexHull(DT);
 
-    % % trisurf(C,DT.Points(:,1),DT.Points(:,2),DT.Points(:,3), ...
-    % % 'EdgeColor','black','FaceColor','none')
-
-    % minumum number of internal points
+    % Generate random points for clusters
     min_points = 1000;
-
-    % Set of coordinates to check
-    number_of_overall_points = round(max(max([a,b,c])*30*abs((3+randn())),min_points));
-    % number of clusters
-    num_clusters = max([5 randi(100)]);
-    % Generate random coordinates for cluster centers within the specified range
+    num_clusters = 15;
+    number_of_overall_points = 4000;
     cluster_centers = DT.Points;
-    num_points_to_exclude = size(DT.Points,1)-num_clusters;
+    num_points_to_exclude = size(DT.Points, 1) - num_clusters;
     indices_to_exclude = randperm(size(cluster_centers, 1), num_points_to_exclude);
     cluster_centers(indices_to_exclude, :) = [];
-    % Define bandwidth for Gaussian kernel (controls the spread)
-    bandwidth = 1000/num_clusters; % adjust as needed
+
+    % Define bandwidth for Gaussian kernel
+    bandwidth = 1000 / num_clusters;
+    coordinates_to_check = [];
 
     % Generate points using KDE around each cluster center
-    coordinates_to_check = [];
     for i = 1:num_clusters
-        % Generate points around each cluster center using Gaussian kernel
-        cluster_points = mvnrnd(cluster_centers(i, :), bandwidth^2 * eye(3), round(number_of_overall_points/num_clusters));
+        cluster_points = mvnrnd(cluster_centers(i, :), bandwidth^2 * eye(3), round(number_of_overall_points / num_clusters));
         coordinates_to_check = [coordinates_to_check; cluster_points];
     end
-    % Check if points are inside or on the surface
+
+    % Check if points are inside or on the surface of the ellipsoid
     in_or_on_ellipsoid = ~isnan(pointLocation(DT, coordinates_to_check));
 
-    % Choose the inside points
+    % Select inside points
     inside_points = coordinates_to_check(in_or_on_ellipsoid, :);
-    % Add inside points to the surface points
-    Points = inside_points;
-    Points = unique(Points, 'rows');
-    % scatter3(Points(:,1),Points(:,2),Points(:,3),'.','r')
-    %Create Delaunay triangulation
-    DT_inside = delaunayTriangulation(Points);
+    Points = unique(inside_points, 'rows');
 
-    % Get edge list
-    edges = edges(DT_inside);
+    % Create Delaunay triangulation for inside points
+    DT_inside = delaunayTriangulation(Points);
+    [V, R] = voronoiDiagram(DT_inside);
+
+    % Remove rows with Inf values from V
+    finite_indices = all(isfinite(V), 2);
+    V_finite = V(finite_indices, :);
+
+    % Mapping from old indices to new indices
+    old_to_new_index = zeros(size(V, 1), 1);
+    old_to_new_index(finite_indices) = 1:sum(finite_indices);
+
+    % Determine points inside the convex hull
+    hull_tetrahedrons = delaunayTriangulation(DT.Points(C(:), :));
+    inside_hull = ~isnan(tsearchn(hull_tetrahedrons.Points, hull_tetrahedrons.ConnectivityList, V_finite));
+
+    % Update vertices inside the convex hull
+    V_finite_inside = V_finite(inside_hull, :);
+    old_to_new_inside_index = zeros(size(V_finite, 1), 1);
+    old_to_new_inside_index(inside_hull) = 1:sum(inside_hull);
+
+    % Create edges for Voronoi diagram
+    edges = [];
+    for i = 1:length(R)
+        region = R{i};
+        finite_region = old_to_new_index(region(region <= size(V, 1) & region > 0));
+        finite_region = finite_region(finite_region > 0);
+        finite_region = old_to_new_inside_index(finite_region);
+        finite_region = finite_region(finite_region > 0);
+        if numel(finite_region) > 1
+            region_edges = [finite_region(:), circshift(finite_region(:), -1)];
+            edges = [edges; region_edges];
+        end
+    end
+    edges = unique(sort(edges, 2), 'rows');
+    Points = V_finite_inside;
 
     % Calculate edge lengths
-    edge_lengths = sqrt(sum((DT_inside.Points(edges(:, 1), :) - DT_inside.Points(edges(:, 2), :)).^2, 2));
+    edge_lengths = sqrt(sum((V_finite_inside(edges(:, 1), :) - V_finite_inside(edges(:, 2), :)).^2, 2));
 
-    % Set distance threshold (adjust as needed)
-    distance_threshold = 5; % You can adjust this threshold to control density
-
-    % Calculate probability of edge removal based on distance
+    % Set distance threshold for edge removal
+    distance_threshold = 1;
     remove_probabilities = 1 - exp(-edge_lengths / distance_threshold);
-    G = graph(edges(:,1),edges(:,2));
+
+    % Initialize graph and calculate centrality
+    G = graph(edges(:, 1), edges(:, 2));
     CC = conncomp(G);
-    degree_cent = G.centrality("degree");
+    degree_cent = centrality(G, 'degree');
     mean_rank = mean(degree_cent);
-    mean_rank_best = 3;
+    mean_rank_best = 3.5;
     std_rank = std(degree_cent);
-    num_edges_init = size(edges,1);
-    remaining_edges = edges;
-    min_length = calculate_min_distance(Points,volume);
-    for i = 1:num_edges_init
-        ind = find(remaining_edges== edges(i,:), 1 );
-        if rand() < remove_probabilities(i) || edge_lengths(i) >= min_length
-            G_i = graph(remaining_edges([1:ind-1, ind+1:end],1),remaining_edges([1:ind-1, ind+1:end],2));
-            CC_i = conncomp(G_i);
-            degree_cent_i = G_i.centrality("degree");
-            mean_rank_i = mean(degree_cent_i);
-            std_rank_i = std(degree_cent_i);
-            if (max(CC) == max(CC_i) && (abs(mean_rank_i-mean_rank_best) <= abs(mean_rank-mean_rank_best) ...
-                    || std_rank_i < std_rank) && min(degree_cent_i) > 2) || edge_lengths(i) >= min_length
-                remaining_edges = remaining_edges([1:ind-1, ind+1:end],:);
-                G = graph(remaining_edges(:,1),remaining_edges(:,2));
-                CC = conncomp(G);
-                degree_cent = G.centrality("degree");
-                mean_rank = mean(degree_cent);
-                std_rank = std(degree_cent);
+    num_edges_init = size(edges, 1);
+
+    % Set angle thresholds
+    low_angle_threshold = pi / 6;
+    high_angle_threshold = 3 * pi / 2;
+
+    % Outer loop to ensure the mean rank is below the threshold
+    while true
+        G = graph(edges(:, 1), edges(:, 2));
+        degree_cent = centrality(G, 'degree');
+        mean_rank = mean(degree_cent);
+
+        for node = 1:size(Points, 1)
+            force_remove = 0;
+            connected_edges = edges(any(edges == node, 2), :);
+            if size(connected_edges, 1) > 4
+                force_remove = 1;
+            end
+
+            for i = 1:size(connected_edges, 1)
+                edge = connected_edges(i, :);
+                ind = find(ismember(edges, edge, 'rows'), 1);
+
+                if force_remove && remove_probabilities(ind) > 0.5
+                    remove_probabilities(ind) = 1;
+                end
+
+                if rand() < remove_probabilities(ind)
+                    % Identify affected nodes
+                    affected_nodes = edge;
+                    new_edges = edges([1:ind-1, ind+1:end], :);
+                    G_i = graph(new_edges(:, 1), new_edges(:, 2));
+                    CC_i = conncomp(G_i);
+                    degree_cent_i = centrality(G_i, 'degree');
+                    mean_rank_i = mean(degree_cent_i);
+                    std_rank_i = std(degree_cent_i);
+
+                    % Calculate angles for affected nodes
+                    angles = calculate_angles_for_nodes(Points, connected_edges);
+
+                    % Check constraints
+                    if max(CC) == max(CC_i) && min(degree_cent_i) > 2 && ...
+                            (abs(mean_rank_i - mean_rank_best) <= abs(mean_rank - mean_rank_best) || std_rank_i < std_rank)
+                        if any(angles < low_angle_threshold) || any(angles > high_angle_threshold)
+                            node_edges = edges(any(edges == node, 2), :);
+                            node_edge_inds = find(any(ismember(edges, node_edges), 2));
+                            max_prob = max(remove_probabilities(node_edge_inds));
+                            remove_probabilities(node_edge_inds) = remove_probabilities(node_edge_inds) * 2;
+                            if force_remove
+                                remove_probabilities(node_edge_inds) = remove_probabilities(node_edge_inds) * 5;
+                            end
+                        else
+                            % Update the graph if constraints are met
+                            edges = new_edges;
+                            G = graph(edges(:, 1), edges(:, 2));
+                            CC = conncomp(G);
+                            degree_cent = centrality(G, 'degree');
+                            mean_rank = mean(degree_cent);
+                            std_rank = std(degree_cent);
+                            % disp(100 * mean_rank_best / mean_rank)
+                        end
+                    end
+                end
             end
         end
-    end
-    bond_count = size(remaining_edges,1);
-    remaining_edges_test = remaining_edges;
 
-    % Initialize matrix to store all coordinates and material indices
+        % Check if the mean rank is below the threshold
+        if mean_rank < mean_rank_best
+            break;
+        end
+
+        % Adjust probabilities
+        remove_probabilities = remove_probabilities * 2;
+        remove_probabilities(remove_probabilities > 1) = 1;
+        low_angle_threshold = low_angle_threshold * 0.5;
+        high_angle_threshold = high_angle_threshold * 1.5;
+    end
+
+    % Update edges to make outer edges realistic
+    [~, edges] = find_outer_points_and_update_edges(V_finite_inside, edges);
+
+    % Initialize coordinates and material indices
     all_coordinates = [];
-    line_coordinates = []; % Initialize line coordinates
-    rbc_coordinates = [];
-    for i = 1:size(remaining_edges_test, 1)
-        start_point = DT_inside.Points(remaining_edges_test(i, 1), :);
-        end_point = DT_inside.Points(remaining_edges_test(i, 2), :);
-        % Linearly interpolate points between pt1 and pt2
-        interp_pts = [];
-        for t = linspace(0, 1, 100)
-            interp_pt = (1 - t) * start_point + t * end_point;
-            interp_pts = [interp_pts; interp_pt];
-        end
-        % Append interpolated points to line_coordinates
-        line_coordinates = [line_coordinates; interp_pts];
-        plot3(interp_pts(:,1),interp_pts(:,2),interp_pts(:,3),'b')
-        pause(1e-12);
-    end
-    % Generate material indices for each point
-    material_index_line = ones(size(line_coordinates, 1), 1) * 2; % Material index for lines
-    % Appending to line coordinates
-    line_coordinates = [line_coordinates, material_index_line];
-    % Append line coordinates to all_coordinates
-    all_coordinates = [all_coordinates; line_coordinates];
+    line_coordinates = [];
+    hold on;
+    axis equal;
 
-    % Extract tetrahedra
-    tetrahedra = DT_inside.ConnectivityList;
-
-    % Initialize a list to store indices of tetrahedra with at least one remaining edge
-    tetrahedra_with_remaining_edges = [];
-
-    % Iterate through each tetrahedron
-    for i = 1:size(tetrahedra, 1)
-        tetrahedron_edges = [tetrahedra(i, [1 2]); tetrahedra(i, [1 3]); tetrahedra(i, [1 4]); ...
-            tetrahedra(i, [2 3]); tetrahedra(i, [2 4]); tetrahedra(i, [3 4])];
-        % Check if any edge of the tetrahedron is in the list of remaining edges
-        if any(ismember(tetrahedron_edges, remaining_edges, 'rows'))
-            tetrahedra_with_remaining_edges = [tetrahedra_with_remaining_edges; i];
-        end
-    end
-
-    % Extract tetrahedra with at least one remaining edge
-    tetrahedra_with_remaining_edges = tetrahedra(tetrahedra_with_remaining_edges, :);
-
-    % Generate waitbar
-    holder = waitbar(0, 'Progress RBC'); % Create a progress bar window
-    % Loop through each tetrahedron
-    RBC_filling_factor = abs(normrnd(0,0.25));
-    for i = 1:size(tetrahedra_with_remaining_edges, 1)
-        v = tetrahedra_with_remaining_edges(i, :);
-        % Update waitbar
-        waitbar(i / size(tetrahedra_with_remaining_edges, 1), holder, sprintf('Progress RBC: %d%%',round((i / size(tetrahedra_with_remaining_edges, 1)) * 100)));
-        center_point_t = mean(Points(v, :), 1);
-        show_RBC = (rand < RBC_filling_factor) ...
-            & (tetrahedron_volume(Points(v(1),:),Points(v(2),:),Points(v(3),:),Points(v(4),:)) > 90);
-        if show_RBC
-            % Define constants for RBCs
-            d = 8; % in meters
-            br = 1; % in meters
-            h = 2.12; % in meters
-            % Calculate P, Q, and R for RBCs
-            P = -(d^2/2) + (h^2/2) * ((d^2/br^2) - 1) - h^2/2 * ((d^2/br^2) - 1) * sqrt(1 - (br^2/h^2));
-            Q = P * (d^2/br^2) + (br^2/4) * (d^4/br^4 - 1);
-            R = -P * (d^2/4) - d^4/16;
-            [x_rbc,y_rbc,z_rbc] = meshgrid(-10+center_point_t(1):0.5:10+ ...
-                center_point_t(1),-10+center_point_t(2):0.5:10+center_point_t(2),...
-                -10+center_point_t(3):0.5:10+center_point_t(3));
-            cell_rotations = rand(1, 3) *pi;
-            % Compute transformed coordinates for RBCs
-            x_rbc_rot = x_rbc-center_point_t(1);
-            y_rbc_rot = y_rbc-center_point_t(2);
-            z_rbc_rot = z_rbc-center_point_t(3);
-            % Apply rotations for RBCs
-            x_rbc_temp = x_rbc_rot;
-            x_rbc_rot = x_rbc_temp * cos(cell_rotations(1)) - z_rbc_rot * sin(cell_rotations(1));
-            z_rbc_rot = x_rbc_temp * sin(cell_rotations(1)) + z_rbc_rot * cos(cell_rotations(1));
-            y_rbc_temp = y_rbc_rot;
-            y_rbc_rot = y_rbc_temp * cos(cell_rotations(2)) + z_rbc_rot * sin(cell_rotations(2));
-            z_rbc_rot = -y_rbc_temp * sin(cell_rotations(2)) + z_rbc_rot * cos(cell_rotations(2));
-            x_rbc_temp = x_rbc_rot;
-            x_rbc_rot = x_rbc_temp * cos(cell_rotations(3)) - y_rbc_rot * sin(cell_rotations(3));
-            y_rbc_rot = x_rbc_temp * sin(cell_rotations(3)) + y_rbc_rot * cos(cell_rotations(3));
-            eq = ((x_rbc_rot).^2 + (y_rbc_rot).^2 + ...
-                (z_rbc_rot).^2).^2 ...
-                + P * ((x_rbc_rot).^2 + (y_rbc_rot).^2) ...
-                + Q * (z_rbc_rot).^2 + R;
-            % Initialize v_rbc to store presence
-            v_rbc = zeros(size(x_rbc));
-            % Mark points inside RBC
-            v_rbc(eq <= 0) = 1;
-            % Extract coordinates where v_rbc is 1
-            rbc_x = x_rbc(v_rbc == 1);
-            rbc_y = y_rbc(v_rbc == 1);
-            rbc_z = z_rbc(v_rbc == 1);
-            % Combine coordinates into a matrix
-            rbc_coordinates = [rbc_x(:), rbc_y(:), rbc_z(:)];
-            DTr = delaunayTriangulation(rbc_x, rbc_y, rbc_z);
-            [Cr,vr] = convexHull(DTr);
-            trisurf(Cr, DTr.Points(:,1), DTr.Points(:,2), DTr.Points(:,3), 'FaceColor', 'red', 'EdgeColor', 'none')
-            % Generate material indices for each point
-            material_index_rbc = ones(size(rbc_coordinates, 1), 1) * 1; % Material index for RBC
-            % Append RBC coordinates to all_coordinates
-            all_coordinates = [all_coordinates; rbc_coordinates, material_index_rbc];
-        end
-    end
-
-    close(holder);
-
-    % Randomly exclude some points
+    % Exclude some points randomly
     exclude_percentage_platelet = rand();
     num_points_to_exclude = round(exclude_percentage_platelet * size(Points, 1));
     indices_to_exclude = randperm(size(Points, 1), num_points_to_exclude);
     Points(indices_to_exclude, :) = [];
 
-
-
-    platelet_radius = 1.5;
-    for i = 1:size(Points,1)
-
-        % Generate surface coordinates for the sphere
+    % Initialize platelet parameters
+    platelet_radius = 1;
+    for i = 1:size(Points, 1)
+        % Generate and plot platelet spheres
         [sx, sy, sz] = sphere;
         sx = sx * platelet_radius + Points(i, 1);
         sy = sy * platelet_radius + Points(i, 2);
         sz = sz * platelet_radius + Points(i, 3);
-        surf(sx,sy,sz,'FaceColor', 'green', 'EdgeColor', 'none');
+        h = surf(sx, sy, sz, 'FaceColor', 'g', 'EdgeColor', 'none', 'FaceAlpha', 0.5);
+        set(h, 'FaceColor', [0 0.8 0.13]);
         pause(1e-12);
-        % Append surface sphere coordinates to all_coordinates
-        sphere_surface_coordinates = [sx(:), sy(:), sz(:), ones(size(sx(:)))*3]; % Material index for spheres
-        all_coordinates = [all_coordinates; sphere_surface_coordinates]; %#ok<*AGROW>
 
-        % Generate inside coordinates for the sphere
-        num_inside_points = 500; % Adjust as needed
+        % Append surface sphere coordinates
+        sphere_surface_coordinates = [sx(:), sy(:), sz(:), ones(size(sx(:))) * 3];
+        all_coordinates = [all_coordinates; sphere_surface_coordinates];
+
+        % Generate inside sphere coordinates
+        num_inside_points = 250;
         sphere_center = Points(i, :);
         sphere_radius = platelet_radius;
-
-        % Generate points uniformly distributed inside the sphere
-        rand_points = rand(num_inside_points, 3) - 0.5; % Points in [-0.5, 0.5]
-        rand_points = rand_points ./ sqrt(sum(rand_points.^2, 2)); % Normalize to unit vectors
+        rand_points = rand(num_inside_points, 3) - 0.5;
+        rand_points = rand_points ./ sqrt(sum(rand_points.^2, 2));
         inside_sphere_coordinates = sphere_center + sphere_radius * rand_points;
-
-        % Append inside sphere coordinates to all_coordinates
-        sphere_inside_coordinates = [inside_sphere_coordinates, ones(size(inside_sphere_coordinates, 1), 1)*3]; % Material index for spheres
+        sphere_inside_coordinates = [inside_sphere_coordinates, ones(size(inside_sphere_coordinates, 1), 1) * 3];
         all_coordinates = [all_coordinates; sphere_inside_coordinates];
     end
 
+    for i = 1:size(edges, 1)
+        start_point = V_finite_inside(edges(i, 1), :);
+        end_point = V_finite_inside(edges(i, 2), :);
+        interp_pts = [];
+        for t = linspace(0, 1, 2)
+            interp_pt = (1 - t) * start_point + t * end_point;
+            interp_pts = [interp_pts; interp_pt];
+        end
+        line_coordinates = [line_coordinates; interp_pts];
+        h = plot3(interp_pts(:, 1), interp_pts(:, 2), interp_pts(:, 3), 'm', 'LineWidth', 1);
+        set(h, 'Color', [0 0.4 0.13 0.5]);
+        pause(1e-12);
+    end
+
+    material_index_line = ones(size(line_coordinates, 1), 1) * 2;
+    line_coordinates = [line_coordinates, material_index_line];
+    all_coordinates = [all_coordinates; line_coordinates];
+
+    % RBC filling factor
+    RBC_filling_factor = 0.5;
+    RBC_diameter = 8;
+    for i = 1:size(inside_points, 1)
+        if rand() < RBC_filling_factor
+            center_point_t = inside_points(i, :);
+            distances = zeros(round(size(line_coordinates, 1) / 10), 1);
+            for p = 1:10:size(line_coordinates, 1)
+                distances(round(p / 10) + 1) = sqrt(sum((line_coordinates(p, 1:3) - center_point_t).^2));
+            end
+            distances_sorted = sort(distances);
+            if distances_sorted(1) > RBC_diameter && distances_sorted(1) < 1.3 * RBC_diameter
+                scaling_factor_RBC = 1;
+                cell_rotations = rand(1, 3) * pi;
+                d = 8 / scaling_factor_RBC;
+                br = 1 / scaling_factor_RBC;
+                h = 2.12 / scaling_factor_RBC;
+                P = -(d^2 / 2) + (h^2 / 2) * ((d^2 / br^2) - 1) - h^2 / 2 * ((d^2 / br^2) - 1) * sqrt(1 - (br^2 / h^2));
+                Q = P * (d^2 / br^2) + (br^2 / 4) * (d^4 / br^4 - 1);
+                R = -P * (d^2 / 4) - d^4 / 16;
+                [x_rbc, y_rbc, z_rbc] = meshgrid(-10 + center_point_t(1):0.5:10 + center_point_t(1), -10 + center_point_t(2):0.5:10 + center_point_t(2), -10 + center_point_t(3):0.5:10 + center_point_t(3));
+                x_rbc_rot = x_rbc - center_point_t(1);
+                y_rbc_rot = y_rbc - center_point_t(2);
+                z_rbc_rot = z_rbc - center_point_t(3);
+                x_rbc_temp = x_rbc_rot;
+                x_rbc_rot = x_rbc_temp * cos(cell_rotations(1)) - z_rbc_rot * sin(cell_rotations(1));
+                z_rbc_rot = x_rbc_temp * sin(cell_rotations(1)) + z_rbc_rot * cos(cell_rotations(1));
+                y_rbc_temp = y_rbc_rot;
+                y_rbc_rot = y_rbc_temp * cos(cell_rotations(2)) + z_rbc_rot * sin(cell_rotations(2));
+                z_rbc_rot = -y_rbc_temp * sin(cell_rotations(2)) + z_rbc_rot * cos(cell_rotations(2));
+                x_rbc_temp = x_rbc_rot;
+                x_rbc_rot = x_rbc_temp * cos(cell_rotations(3)) - y_rbc_rot * sin(cell_rotations(3));
+                y_rbc_rot = x_rbc_temp * sin(cell_rotations(3)) + y_rbc_rot * cos(cell_rotations(3));
+                eq = ((x_rbc_rot).^2 + (y_rbc_rot).^2 + (z_rbc_rot).^2).^2 + P * ((x_rbc_rot).^2 + (y_rbc_rot).^2) + Q * (z_rbc_rot).^2 + R;
+                v_rbc = zeros(size(x_rbc));
+                v_rbc(eq <= 0) = 1;
+                rbc_x = x_rbc(v_rbc == 1);
+                rbc_y = y_rbc(v_rbc == 1);
+                rbc_z = z_rbc(v_rbc == 1);
+                rbc_coordinates = [rbc_x(:), rbc_y(:), rbc_z(:)];
+                DTr = delaunayTriangulation(rbc_x, rbc_y, rbc_z);
+                [Cr, vr] = convexHull(DTr);
+                trisurf(Cr, DTr.Points(:, 1), DTr.Points(:, 2), DTr.Points(:, 3), 'FaceColor', 'red', 'EdgeColor', 'none');
+                material_index_rbc = ones(size(rbc_coordinates, 1), 1) * 1;
+                all_coordinates = [all_coordinates; rbc_coordinates, material_index_rbc];
+            elseif distances_sorted(1) > 1.3 * RBC_diameter
+                num_RBC_in_region = round(5 * RBC_filling_factor * distances_sorted(1) / RBC_diameter);
+                for j = 1:num_RBC_in_region
+                    intersect = true;
+                    while intersect
+                        center_point_t_1(1, 1) = center_point_t(1, 1) + ((-1)^randi(2)) * rand() * distances_sorted(1);
+                        center_point_t_1(1, 2) = center_point_t(1, 2) + ((-1)^randi(2)) * rand() * distances_sorted(1);
+                        center_point_t_1(1, 3) = center_point_t(1, 3) + ((-1)^randi(2)) * rand() * distances_sorted(1);
+                        scaling_factor_RBC = 1;
+                        cell_rotations = rand(1, 3) * pi;
+                        d = 8 / scaling_factor_RBC;
+                        br = 1 / scaling_factor_RBC;
+                        h = 2.12 / scaling_factor_RBC;
+                        P = -(d^2 / 2) + (h^2 / 2) * ((d^2 / br^2) - 1) - h^2 / 2 * ((d^2 / br^2) - 1) * sqrt(1 - (br^2 / h^2));
+                        Q = P * (d^2 / br^2) + (br^2 / 4) * (d^4 / br^4 - 1);
+                        R = -P * (d^2 / 4) - d^4 / 16;
+                        [x_rbc, y_rbc, z_rbc] = meshgrid(-10 + center_point_t_1(1):0.5:10 + center_point_t_1(1), -10 + center_point_t_1(2):0.5:10 + center_point_t_1(2), -10 + center_point_t_1(3):0.5:10 + center_point_t_1(3));
+                        x_rbc_rot = x_rbc - center_point_t_1(1);
+                        y_rbc_rot = y_rbc - center_point_t_1(2);
+                        z_rbc_rot = z_rbc - center_point_t_1(3);
+                        x_rbc_temp = x_rbc_rot;
+                        x_rbc_rot = x_rbc_temp * cos(cell_rotations(1)) - z_rbc_rot * sin(cell_rotations(1));
+                        z_rbc_rot = x_rbc_temp * sin(cell_rotations(1)) + z_rbc_rot * cos(cell_rotations(1));
+                        y_rbc_temp = y_rbc_rot;
+                        y_rbc_rot = y_rbc_temp * cos(cell_rotations(2)) + z_rbc_rot * sin(cell_rotations(2));
+                        z_rbc_rot = -y_rbc_temp * sin(cell_rotations(2)) + z_rbc_rot * cos(cell_rotations(2));
+                        x_rbc_temp = x_rbc_rot;
+                        x_rbc_rot = x_rbc_temp * cos(cell_rotations(3)) - y_rbc_rot * sin(cell_rotations(3));
+                        y_rbc_rot = x_rbc_temp * sin(cell_rotations(3)) + y_rbc_rot * cos(cell_rotations(3));
+                        eq = ((x_rbc_rot).^2 + (y_rbc_rot).^2 + (z_rbc_rot).^2).^2 + P * ((x_rbc_rot).^2 + (y_rbc_rot).^2) + Q * (z_rbc_rot).^2 + R;
+                        v_rbc = zeros(size(x_rbc));
+                        v_rbc(eq <= 0) = 1;
+                        rbc_x = x_rbc(v_rbc == 1);
+                        rbc_y = y_rbc(v_rbc == 1);
+                        rbc_z = z_rbc(v_rbc == 1);
+                        rbc_coordinates = [rbc_x(:), rbc_y(:), rbc_z(:)];
+                        min_d = 1.0;
+                        squared_distances_to_center = sum((line_coordinates(:, 1:3) - center_point_t_1).^2, 2);
+                        inside_sphere = line_coordinates(squared_distances_to_center <= (RBC_diameter / 2)^2, 1:3);
+                        distances_to_Fibrin = distances_sorted(1);
+                        if ~isempty(inside_sphere)
+                            distances_to_Fibrin = 2 * min_d;
+                        else
+                            for k = 1:size(rbc_coordinates, 1)
+                                for l = 1:size(inside_sphere, 1)
+                                    distances_to_Fibrin = sqrt(sum((rbc_coordinates(k, 1:3) - inside_sphere(l, :)).^2));
+                                    if distances_to_Fibrin <= min_d
+                                        break;
+                                    end
+                                end
+                            end
+                        end
+                        if distances_to_Fibrin > min_d
+                            DTr = delaunayTriangulation(rbc_x, rbc_y, rbc_z);
+                            [Cr, vr] = convexHull(DTr);
+                            trisurf(Cr, DTr.Points(:, 1), DTr.Points(:, 2), DTr.Points(:, 3), 'FaceColor', 'red', 'EdgeColor', 'none');
+                            material_index_rbc = ones(size(rbc_coordinates, 1), 1) * 1;
+                            all_coordinates = [all_coordinates; rbc_coordinates, material_index_rbc];
+                            intersect = false;
+                        else
+                            intersect = true;
+                            scaling_factor_RBC = scaling_factor_RBC * sqrt(0.9);
+                        end
+                    end
+                end
+            elseif distances_sorted(1) <= RBC_diameter && distances_sorted(1) > RBC_diameter / 4
+                scaling_factor_RBC = sqrt(RBC_diameter / distances_sorted(1));
+                cell_rotations = rand(1, 3) * pi;
+                d = 8 / scaling_factor_RBC;
+                br = 1 / scaling_factor_RBC;
+                h = 2.12 / scaling_factor_RBC;
+                P = -(d^2 / 2) + (h^2 / 2) * ((d^2 / br^2) - 1) - h^2 / 2 * ((d^2 / br^2) - 1) * sqrt(1 - (br^2 / h^2));
+                Q = P * (d^2 / br^2) + (br^2 / 4) * (d^4 / br^4 - 1);
+                R = -P * (d^2 / 4) - d^4 / 16;
+                [x_rbc, y_rbc, z_rbc] = meshgrid(-10 + center_point_t(1):0.5:10 + center_point_t(1), -10 + center_point_t(2):0.5:10 + center_point_t(2), -10 + center_point_t(3):0.5:10 + center_point_t(3));
+                x_rbc_rot = x_rbc - center_point_t(1);
+                y_rbc_rot = y_rbc - center_point_t(2);
+                z_rbc_rot = z_rbc - center_point_t(3);
+                x_rbc_temp = x_rbc_rot;
+                x_rbc_rot = x_rbc_temp * cos(cell_rotations(1)) - z_rbc_rot * sin(cell_rotations(1));
+                z_rbc_rot = x_rbc_temp * sin(cell_rotations(1)) + z_rbc_rot * cos(cell_rotations(1));
+                y_rbc_temp = y_rbc_rot;
+                y_rbc_rot = y_rbc_temp * cos(cell_rotations(2)) + z_rbc_rot * sin(cell_rotations(2));
+                z_rbc_rot = -y_rbc_temp * sin(cell_rotations(2)) + z_rbc_rot * cos(cell_rotations(2));
+                x_rbc_temp = x_rbc_rot;
+                x_rbc_rot = x_rbc_temp * cos(cell_rotations(3)) - y_rbc_rot * sin(cell_rotations(3));
+                y_rbc_rot = x_rbc_temp * sin(cell_rotations(3)) + y_rbc_rot * cos(cell_rotations(3));
+                eq = ((x_rbc_rot).^2 + (y_rbc_rot).^2 + (z_rbc_rot).^2).^2 + P * ((x_rbc_rot).^2 + (y_rbc_rot).^2) + Q * (z_rbc_rot).^2 + R;
+                v_rbc = zeros(size(x_rbc));
+                v_rbc(eq <= 0) = 1;
+                rbc_x = x_rbc(v_rbc == 1);
+                rbc_y = y_rbc(v_rbc == 1);
+                rbc_z = z_rbc(v_rbc == 1);
+                rbc_coordinates = [rbc_x(:), rbc_y(:), rbc_z(:)];
+                DTr = delaunayTriangulation(rbc_x, rbc_y, rbc_z);
+                [Cr, vr] = convexHull(DTr);
+                trisurf(Cr, DTr.Points(:, 1), DTr.Points(:, 2), DTr.Points(:, 3), 'FaceColor', 'red', 'EdgeColor', 'none');
+                material_index_rbc = ones(size(rbc_coordinates, 1), 1) * 1;
+                all_coordinates = [all_coordinates; rbc_coordinates, material_index_rbc];
+            end
+        end
+    end
+
     % Sort the coordinates matrix based on first x, then y, and finally z
-    all_coordinates_sorted = sortrows(single(all_coordinates), [4,1,2,3]);
-    % % Save sorted coordinates to a text file
-    writematrix(all_coordinates_sorted, sprintf('all_coordinates_%d.txt',index), 'Delimiter', 'tab');
-
-    coordinates = all_coordinates_sorted(:,1:3);
-    materials = all_coordinates_sorted(:,4);
-
-    % safe distance from the boundaries in um
-    distance_to_boundary = 50;
+    all_coordinates_sorted = sortrows(single(all_coordinates), [4, 1, 2, 3]);
+    coordinates = all_coordinates_sorted(:, 1:3);
+    materials = all_coordinates_sorted(:, 4);
 
     % Define the size of the mesh space
-    mesh_size_x = round(max(coordinates(:,1))-min(coordinates(:,1)))+2*distance_to_boundary;  %-+50um safe distance from boundary
-    mesh_size_y = round(max(coordinates(:,2))-min(coordinates(:,2)))+2*distance_to_boundary;  %-+50um safe distance from boundary
-    mesh_size_z = round(max(coordinates(:,3))-min(coordinates(:,3)))+2*distance_to_boundary;  %-+50um safe distance from boundary
+    distance_to_boundary = 50;
+    mesh_size_x = round(max(coordinates(:, 1)) - min(coordinates(:, 1))) + 2 * distance_to_boundary;
+    mesh_size_y = round(max(coordinates(:, 2)) - min(coordinates(:, 2))) + 2 * distance_to_boundary;
+    mesh_size_z = round(max(coordinates(:, 3)) - min(coordinates(:, 3))) + 2 * distance_to_boundary;
 
     % Create an empty mesh space
     mesh_space = zeros(mesh_size_x, mesh_size_y, mesh_size_z, 'single');
@@ -286,9 +435,9 @@ for index = 1038:2000
     scaling_factor_x = 1;
     scaling_factor_y = 1;
     scaling_factor_z = 1;
-    coordinates_scaled(:,1) = coordinates(:,1) * scaling_factor_x + distance_to_boundary;
-    coordinates_scaled(:,2) = coordinates(:,2) * scaling_factor_y + distance_to_boundary;
-    coordinates_scaled(:,3) = coordinates(:,3) * scaling_factor_z + distance_to_boundary;
+    coordinates_scaled(:, 1) = coordinates(:, 1) * scaling_factor_x + distance_to_boundary;
+    coordinates_scaled(:, 2) = coordinates(:, 2) * scaling_factor_y + distance_to_boundary;
+    coordinates_scaled(:, 3) = coordinates(:, 3) * scaling_factor_z + distance_to_boundary;
 
     % Ensure all coordinates are integers
     coordinates_scaled = round(coordinates_scaled);
@@ -298,35 +447,66 @@ for index = 1038:2000
         x = coordinates_scaled(i, 1);
         y = coordinates_scaled(i, 2);
         z = coordinates_scaled(i, 3);
-
-        % Check if the coordinates are within the mesh space
         if x >= 1 && x <= mesh_size_x && y >= 1 && y <= mesh_size_y && z >= 1 && z <= mesh_size_z
-            % Assign the material index to the corresponding voxel
             mesh_space(x, y, z) = materials(i);
         end
     end
 
     % Save the mesh space to a file
-    save(sprintf('mesh_space_%d.mat',index), 'mesh_space','volume', '-v7.3');
-    savefig(sprintf('clot_%d.fig',index));
+    save(sprintf('mesh_space_%d.mat', index), 'mesh_space', 'volume', '-v7.3');
+    toc
 end
 
-function volume = tetrahedron_volume(A, B, C, D)
-% Calculate vectors
-AB = B - A;
-AC = C - A;
-AD = D - A;
+function [outer_points, all_edges] = find_outer_points_and_update_edges(points, edges)
+    % Find outer points using convex hull
+    K = convhull(points(:, 1), points(:, 2), points(:, 3));
+    outer_point_indices = unique(K(:));
+    outer_points = points(outer_point_indices, :);
 
-% Calculate scalar triple product
-triple_product = dot(AB, cross(AC, AD));
+    % Find edges connected to outer points
+    outer_edges = [];
+    for i = 1:size(edges, 1)
+        if ismember(edges(i, 1), outer_point_indices) || ismember(edges(i, 2), outer_point_indices)
+            outer_edges = [outer_edges; edges(i, :)];
+        end
+    end
 
-% Calculate volume
-volume = abs(triple_product) / 6;
+    % Delete all but one edge connected to each outer point randomly
+    updated_edges = outer_edges;
+    outer_point_used = zeros(size(outer_point_indices));
+    for i = 1:numel(outer_point_indices)
+        idx = find(outer_edges(:, 1) == outer_point_indices(i) | outer_edges(:, 2) == outer_point_indices(i));
+        if numel(idx) > 1
+            idx = idx(randperm(numel(idx)));
+            if numel(idx) > 1
+                updated_edges(idx(2:end), :) = ones(length(idx(2:end)), 2);
+            end
+        end
+    end
+
+    % Construct all_edges matrix including updated_edges and other edges
+    all_edges = edges;
+    [~, ia, ~] = intersect(all_edges, updated_edges, 'rows');
+    all_edges(ia, :) = [];
 end
 
-function mean_distance = calculate_min_distance(coordinates,volume) 
-num_points = size(coordinates,1);
-num_points_per_dimension_mean = num_points^(1/3);
-dimension_mean = volume^(1/3);
-mean_distance = dimension_mean/num_points_per_dimension_mean;
+function angles = calculate_angles_for_nodes(Points, connected_edges)
+    % Calculate vectors based on connected edges
+    vectors = Points(connected_edges(:, 1), :) - Points(connected_edges(:, 2), :);
+    vectors = vectors ./ vecnorm(vectors, 2, 2);
+
+    % Initialize angles array
+    angles = zeros(size(vectors, 1), 1);
+
+    % Calculate angles between consecutive vectors
+    for i = 1:size(vectors, 1)
+        vec1 = vectors(i, :);
+        if i < size(vectors, 1)
+            vec2 = vectors(i + 1, :);
+        else
+            vec2 = vectors(1, :);
+        end
+        dot_product = dot(vec1, vec2);
+        angles(i) = acos(dot_product);
+    end
 end

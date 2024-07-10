@@ -1,0 +1,19 @@
+figure;
+map = inferno;
+% Number of subplots
+numPlots = 9;
+
+% Indices for the third dimension
+indices_x = round(size(dataset.spec_all,1) * [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]);
+indices_y = round(size(dataset.spec_all,2) * [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]);
+
+for i = 1:numPlots
+    subplot(3, 3, i); % Create subplot
+    y = linspace(-size(dataset.spec_all, 2) / 2, size(dataset.spec_all, 2) / 2, size(dataset.spec_all, 2));
+    f = dataset.frequencies;
+    spec = dataset.spec_all(indices_x(i),:,1:44); %#ok<SAGROW>
+    imagesc(f(1:44), y, reshape(spec, [length(f(1:44)) length(y)])'); % Transpose the reshaped matrix
+    grid on 
+    grid minor
+    colormap()
+end

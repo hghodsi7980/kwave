@@ -1,0 +1,131 @@
+close all
+
+% Load datasets from MAT files
+dataset.dataset1 = load('dataset1.mat');
+dataset.dataset2 = load('dataset2.mat');
+dataset.dataset3 = load('dataset3.mat');
+
+% Create figure and plot each dataset in a subplot
+figure;
+
+% Original 3 subplots
+subplot(2, 3, 4);
+plot_dataset(dataset.dataset1, 4);
+subplot(2, 3, 5);
+plot_dataset(dataset.dataset2, 5);
+subplot(2, 3, 6);
+plot_dataset(dataset.dataset3, 6);
+
+% Add titles for each subplot to differentiate them
+subplot(2, 3, 4);
+title('Fibrin-rich clot');
+subplot(2, 3, 5);
+title('Mixed clot');
+subplot(2, 3, 6);
+title('RBC-rich clot');
+
+% Additional plot on top
+subplot(2, 3, [1 2 3]);
+plot_additional_spectrum(dataset);
+
+% Function to process and plot each dataset
+function plot_dataset(dataset, subplot_position)
+    % Extract data and frequencies
+    data = dataset.dataset.spec_all(:,:,1:30);
+    frequencies = dataset.dataset.frequencies(1:30);
+
+    % Generate x and y coordinates based on the size of the data
+    x = -size(data, 1)/2 : size(data, 1)/2 - 1;
+    y = -size(data, 2)/2 : size(data, 2)/2 - 1;
+
+    % Generate grid for original data
+    [Y, X, f] = meshgrid(y, x, frequencies);
+
+    % Desired higher resolution for the f axis
+    new_f_resolution = 10;
+    new_f = linspace(min(frequencies), max(frequencies), numel(frequencies) * new_f_resolution);
+
+    % Interpolate data along the f axis
+    [Yq, Xq, fq] = meshgrid(y, x, new_f);
+    data_interpolated = interp3(Y, X, f, data, Yq, Xq, fq, 'linear');
+
+    % Create the slice plot with higher resolution
+    subplot(2, 3, subplot_position);
+    h = slice(Yq, Xq, fq, data_interpolated, 0, 0, []);
+    set(h, 'EdgeColor', 'none');
+
+    % Adjust colormap and color axis
+    cmap = inferno;  % Get the 'parula' colormap with 256 colors
+    colormap(cmap);  % You can try other colormaps
+    clim([min(dataset.dataset.spec_all(:)) max(dataset.dataset.spec_all(:)) * 0.5]);
+
+    % Enhance colormap contrast if needed
+    cmap = imadjust(cmap, stretchlim(cmap), []);  % Adjust the colormap
+    colormap(cmap);  % Apply the adjusted colormap
+
+    % Add colorbar for reference
+    colorbar;
+
+    % Set fonts, axis titles and grid
+    set(gca, 'FontName', 'Calibri Light', 'FontSize', 20, 'FontWeight', 'bold', 'FontAngle', 'italic');
+    xlabel('x (µm)');
+    ylabel('y (µm)');
+    zlabel('Frequency (Hz)');
+    grid on;
+end
+
+% Function to plot the additional spectrum
+function plot_additional_spectrum(datasets)
+    hold on;
+    % Extract data from each dataset
+    data1 = datasets.dataset1.dataset.spec_all(:,:,:);
+    data2 = datasets.dataset2.dataset.spec_all(:,:,:);
+    data3 = datasets.dataset3.dataset.spec_all(:,:,:);
+
+    % Extract frequencies from each dataset
+    frequencies1 = datasets.dataset1.dataset.frequencies(1:30);
+    frequencies2 = datasets.dataset2.dataset.frequencies(1:30);
+    frequencies3 = datasets.dataset3.dataset.frequencies(1:30);
+
+    % Select a specific point (for example, the center point)
+    [maxValue1, linearIndex1] = max(data1(:));
+    [maxValue2, linearIndex2] = max(data2(:));
+    [maxValue3, linearIndex3] = max(data3(:));
+    [ix1, iy1, ~] = ind2sub(size(data1), linearIndex1);
+    [ix2, iy2, ~] = ind2sub(size(data2), linearIndex2);
+    [ix3, iy3, ~] = ind2sub(size(data3), linearIndex3);
+
+    % Extract spectra for the specific point
+    spectrum1 = reshape(data1(ix1, iy1, 1:30),1,[]);
+    spectrum2 = reshape(data2(ix2, iy2, 1:30),1,[]);
+    spectrum3 = reshape(data3(ix3, iy3, 1:30),1,[]);
+    spectrum1 = spectrum1/max(spectrum1);
+    spectrum2 = spectrum2/max(spectrum2);
+    spectrum3 = spectrum3/max(spectrum3);
+
+    % Interpolate the spectra using spline interpolation
+    new_frequencies1 = linspace(min(frequencies1), max(frequencies1), 300); % Increase the frequency resolution
+    new_frequencies2 = linspace(min(frequencies2), max(frequencies2), 300);
+    new_frequencies3 = linspace(min(frequencies3), max(frequencies3), 300);
+    
+    interp_spectrum1 = interp1(frequencies1, spectrum1(:), new_frequencies1, 'spline');
+    interp_spectrum2 = interp1(frequencies2, spectrum2(:), new_frequencies2, 'spline');
+    interp_spectrum3 = interp1(frequencies3, spectrum3(:), new_frequencies3, 'spline');
+
+    % Plot the interpolated spectra
+    plot(new_frequencies1, interp_spectrum1, 'r-', 'LineWidth', 2);
+    plot(new_frequencies2, interp_spectrum2, 'g-', 'LineWidth', 2);
+    plot(new_frequencies3, interp_spectrum3, 'b-', 'LineWidth', 2);
+
+    % Add labels and legend
+    set(gca, 'XScale', 'log');
+    xlabel('Frequency (Hz)');
+    ylabel('Spectrum Value');
+    legend({'Fibrin-rich clot', 'Mixed clot', 'RBC-rich clot'});
+    title('Interpolated Spectra at Selected Point');
+    hold off;
+
+    % Set fonts and grid
+    set(gca, 'FontName', 'Calibri Light', 'FontSize', 25, 'FontWeight', 'bold', 'FontAngle', 'italic');
+    grid on;
+end

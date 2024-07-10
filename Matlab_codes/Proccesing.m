@@ -2,10 +2,10 @@ feature_size = 18;
 num_vib_modes = 5;
 output_size = 2;
 % Define the folder containing the .mat files
-folder = 'C:\GitHub\kwave\Simulation_data\'; % Update this with your folder path
+folder = 'C:\GitHub\kwave\Matlab_codes\'; % Update this with your folder path
 
 % Get a list of all .mat files in the folder
-fileList = dir(fullfile(folder, '*.mat'));
+fileList = dir(fullfile(folder, 'mesh_space_*.mat'));
 
 % Loop through each file
 
@@ -57,7 +57,7 @@ for i = 1:length(fileList)
     output_struct(i).parameter(2,1:length('Fibrin_ratio')) = 'Fibrin_ratio';
     porosity = 100*(1-(sum(sum(temp_matrix))/(pi*(clot_radious/dx)^2)));
     if porosity > 100
-        porosity = 100;
+        porosity = 100;cl
     end
     if porosity < 0
         porosity = 0;
