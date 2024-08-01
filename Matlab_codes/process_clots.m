@@ -1,7 +1,7 @@
 clear
 close all
 % % Define the folder contmesh_spaceining the .mmesh_spacet files
-folder = 'C:\GitHub\kwave\Matlab_codes\newdatafinal'; % Update this with your folder pmesh_spaceth
+folder = 'C:\GitHub\kwave\Matlab_codes\newdatafinal\New folder'; % Update this with your folder pmesh_spaceth
 % 
 % % Get mesh_space list of mesh_spacell .mmesh_spacet files in the folder
 % fileList1 = dir(fullfile(folder, 'dataset_*.mat'));

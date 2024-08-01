@@ -1,23 +1,14 @@
-for index = 2500
-    % tic
-    % % Clear all variables except 'index'
-    % clearvars('-except', 'index');
-    % close all
-    % disp((index-2000)*100/2000);
-    % 
+function Clotgen1(startIter, endIter)
+    % If not provided, use default values for startIter and endIter
+    if nargin < 2
+        startIter = 1;
+        endIter = 10;
+    end
+
+    for index = startIter:endIter
     % Set the random seed for reproducibility
-    fixed_seed = 42;  % Choose a fixed seed value
+    fixed_seed = 5000;  % Choose a fixed seed value
     rng(fixed_seed + index);  % Randomize the seed in each iteration based on index
-    % 
-    % % Create a new figure and axes
-    % fig = figure;
-    % ax = axes(fig);
-    % 
-    % % Set axes background to black and axis lines to white
-    % set(ax, 'Color', 'none');
-    % set(ax, 'XColor', 'none', 'YColor', 'none', 'ZColor', 'none');
-    % view(125, 25);
-    % axis equal
 
     % Parameters
     numPoints = 5000; % Number of points on ellipsoid surface
@@ -52,16 +43,16 @@ for index = 2500
     [C, volume] = convexHull(DT);
 
     % Generate random points for clusters
-    min_points = 1000;
-    num_clusters = 10;
-    number_of_overall_points = 10000;
+    min_points = 500;
+    num_clusters = max(5, randi(50));
+    number_of_overall_points = round(max(min_points, abs(normrnd(2000, 1000))));
     cluster_centers = DT.Points;
     num_points_to_exclude = size(DT.Points, 1) - num_clusters;
     indices_to_exclude = randperm(size(cluster_centers, 1), num_points_to_exclude);
     cluster_centers(indices_to_exclude, :) = [];
 
     % Define bandwidth for Gaussian kernel
-    bandwidth = 50;
+    bandwidth = 1000 / num_clusters;
     coordinates_to_check = [];
 
     % Generate points using KDE around each cluster center
@@ -212,8 +203,8 @@ for index = 2500
     % Initialize coordinates and material indices
     all_coordinates = [];
     line_coordinates = [];
-    hold on;
-    axis equal;
+    % hold on;
+    % axis equal;
 
     % Exclude some points randomly
     exclude_percentage_platelet = rand();
@@ -229,9 +220,9 @@ for index = 2500
         sx = sx * platelet_radius + Points(i, 1);
         sy = sy * platelet_radius + Points(i, 2);
         sz = sz * platelet_radius + Points(i, 3);
-        h = surf(sx, sy, sz, 'FaceColor', 'g', 'EdgeColor', 'none', 'FaceAlpha', 0.5);
-        set(h, 'FaceColor', [0 0.8 0.13]);
-        pause(1e-12);
+        % h = surf(sx, sy, sz, 'FaceColor', 'g', 'EdgeColor', 'none', 'FaceAlpha', 0.5);
+        % set(h, 'FaceColor', [0 0.8 0.13]);
+        % pause(1e-12);
 
         % Append surface sphere coordinates
         sphere_surface_coordinates = [sx(:), sy(:), sz(:), ones(size(sx(:))) * 3];
@@ -252,14 +243,14 @@ for index = 2500
         start_point = V_finite_inside(edges(i, 1), :);
         end_point = V_finite_inside(edges(i, 2), :);
         interp_pts = [];
-        for t = linspace(0, 1, 2)
+        for t = linspace(0, 1, 100)
             interp_pt = (1 - t) * start_point + t * end_point;
             interp_pts = [interp_pts; interp_pt];
         end
         line_coordinates = [line_coordinates; interp_pts];
-        h = plot3(interp_pts(:, 1), interp_pts(:, 2), interp_pts(:, 3), 'm', 'LineWidth', 1);
-        set(h, 'Color', [0 0.4 0.13 0.5]);
-        pause(1e-12);
+        % h = plot3(interp_pts(:, 1), interp_pts(:, 2), interp_pts(:, 3), 'm', 'LineWidth', 1);
+        % set(h, 'Color', [0 0.4 0.13 0.5]);
+        % pause(1e-12);
     end
 
     material_index_line = ones(size(line_coordinates, 1), 1) * 2;
@@ -267,9 +258,10 @@ for index = 2500
     all_coordinates = [all_coordinates; line_coordinates];
 
     % RBC filling factor
-    RBC_filling_factor = 0.5;
+    RBC_filling_factor = 0.7+0.3*rand();
     RBC_diameter = 8;
     for i = 1:size(inside_points, 1)
+        pause(1e-12);
         if rand() < RBC_filling_factor
             center_point_t = inside_points(i, :);
             distances = zeros(round(size(line_coordinates, 1) / 10), 1);
@@ -306,19 +298,17 @@ for index = 2500
                 rbc_y = y_rbc(v_rbc == 1);
                 rbc_z = z_rbc(v_rbc == 1);
                 rbc_coordinates = [rbc_x(:), rbc_y(:), rbc_z(:)];
-                DTr = delaunayTriangulation(rbc_x, rbc_y, rbc_z);
-                [Cr, vr] = convexHull(DTr);
-                trisurf(Cr, DTr.Points(:, 1), DTr.Points(:, 2), DTr.Points(:, 3), 'FaceColor', 'red', 'EdgeColor', 'none');
+                % DTr = delaunayTriangulation(rbc_x, rbc_y, rbc_z);
+                % [Cr, vr] = convexHull(DTr);
+                % trisurf(Cr, DTr.Points(:, 1), DTr.Points(:, 2), DTr.Points(:, 3), 'FaceColor', 'red', 'EdgeColor', 'none');
                 material_index_rbc = ones(size(rbc_coordinates, 1), 1) * 1;
                 all_coordinates = [all_coordinates; rbc_coordinates, material_index_rbc];
             elseif distances_sorted(1) > 1.3 * RBC_diameter
-                num_RBC_in_region = round(5 * RBC_filling_factor * distances_sorted(1) / RBC_diameter);
+                num_RBC_in_region = round(10 * RBC_filling_factor * distances_sorted(1) / RBC_diameter);
                 for j = 1:num_RBC_in_region
                     intersect = true;
                     while intersect
-                        center_point_t_1(1, 1) = center_point_t(1, 1) + ((-1)^randi(2)) * rand() * distances_sorted(1);
-                        center_point_t_1(1, 2) = center_point_t(1, 2) + ((-1)^randi(2)) * rand() * distances_sorted(1);
-                        center_point_t_1(1, 3) = center_point_t(1, 3) + ((-1)^randi(2)) * rand() * distances_sorted(1);
+                        center_point_t_1 = center_point_t + ((-1).^randi(2,1,3)) .* rand(1,3) * distances_sorted(1);
                         scaling_factor_RBC = 1;
                         cell_rotations = rand(1, 3) * pi;
                         d = 8 / scaling_factor_RBC;
@@ -364,9 +354,9 @@ for index = 2500
                             end
                         end
                         if distances_to_Fibrin > min_d
-                            DTr = delaunayTriangulation(rbc_x, rbc_y, rbc_z);
-                            [Cr, vr] = convexHull(DTr);
-                            trisurf(Cr, DTr.Points(:, 1), DTr.Points(:, 2), DTr.Points(:, 3), 'FaceColor', 'red', 'EdgeColor', 'none');
+                            % DTr = delaunayTriangulation(rbc_x, rbc_y, rbc_z);
+                            % [Cr, vr] = convexHull(DTr);
+                            % trisurf(Cr, DTr.Points(:, 1), DTr.Points(:, 2), DTr.Points(:, 3), 'FaceColor', 'red', 'EdgeColor', 'none');
                             material_index_rbc = ones(size(rbc_coordinates, 1), 1) * 1;
                             all_coordinates = [all_coordinates; rbc_coordinates, material_index_rbc];
                             intersect = false;
@@ -405,9 +395,9 @@ for index = 2500
                 rbc_y = y_rbc(v_rbc == 1);
                 rbc_z = z_rbc(v_rbc == 1);
                 rbc_coordinates = [rbc_x(:), rbc_y(:), rbc_z(:)];
-                DTr = delaunayTriangulation(rbc_x, rbc_y, rbc_z);
-                [Cr, vr] = convexHull(DTr);
-                trisurf(Cr, DTr.Points(:, 1), DTr.Points(:, 2), DTr.Points(:, 3), 'FaceColor', 'red', 'EdgeColor', 'none');
+                % DTr = delaunayTriangulation(rbc_x, rbc_y, rbc_z);
+                % [Cr, vr] = convexHull(DTr);
+                % trisurf(Cr, DTr.Points(:, 1), DTr.Points(:, 2), DTr.Points(:, 3), 'FaceColor', 'red', 'EdgeColor', 'none');
                 material_index_rbc = ones(size(rbc_coordinates, 1), 1) * 1;
                 all_coordinates = [all_coordinates; rbc_coordinates, material_index_rbc];
             end
@@ -432,6 +422,7 @@ for index = 2500
     coordinates = coordinates - min(coordinates) + 1;
 
     % Scale coordinates to fit within the mesh size
+    coordinates_scaled = zeros(size(coordinates, 1), 3); % Initialize here
     scaling_factor_x = 1;
     scaling_factor_y = 1;
     scaling_factor_z = 1;
@@ -454,7 +445,7 @@ for index = 2500
 
     % Save the mesh space to a file
     save(sprintf('mesh_space_%d.mat', index), 'mesh_space', 'volume', '-v7.3');
-    toc
+    end
 end
 
 function [outer_points, all_edges] = find_outer_points_and_update_edges(points, edges)
