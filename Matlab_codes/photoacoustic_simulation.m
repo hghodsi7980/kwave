@@ -14,7 +14,7 @@ T_array = linspace(0,T,array_size);
 % sensor_data_avr = zeros(average_size,size(T_array,2));
 % mex   -DUSE_OMP C:\Git\kwave\software_packages\ValoMC-master\ValoMC-master\cpp\2d\MC2Dmex.cpp COMPFLAGS='\$COMPFLAGS /openmp'
 %mex   -DUSE_OMP /home/hghodsi/Software_packages/ValoMC-master/ValoMC-master/cpp/2d/MC2Dmex.cpp COMPFLAGS='\$COMPFLAGS -fopenmp' CXXFLAGS='\$CXXFLAGS -fopenmp' LDFLAGS='\$LDFLAGS -fopenmp'
-for index = 56:1000
+for index = 1:1000
     h = waitbar(0, 'Progress'); % Create a progress bar window
     waitbar(index / 1000, h, sprintf('Overall Progress: %d%%', round((index / 1000) * 100)));
     pause(0.1); % Optional: Add a delay to slow down the progress for demonstration purposes
