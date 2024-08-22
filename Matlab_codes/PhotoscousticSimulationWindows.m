@@ -1,16 +1,13 @@
-function PAsim(startIter, endIter)
+function PhotoscousticSimulationWindows(startIter, endIter)
 % If not provided, use default values for startIter and endIter
 if nargin < 2
     startIter = 1;
     endIter = 10;
 end
-
 for counter = startIter:endIter
-    addpath(genpath('/home/hghodsi/Matlab_codes'))
-    addpath(genpath('/home/hghodsi/Software_packages'))
     clearvars('-except','counter');
     disp(counter);
-    load(sprintf('/home/hghodsi/Matlab_codes/mat_files/dataset%d.mat',counter));
+    load(sprintf('yourpath to dataset',counter));
     x_arr = linspace(round(-size(mesh_space,1)/2),round(size(mesh_space,1)/2),size(mesh_space,1));
     y_arr = linspace(round(-size(mesh_space,2)/2),round(size(mesh_space,2)/2),size(mesh_space,2));
     z_arr = linspace(round(-size(mesh_space,3)/2),round(size(mesh_space,3)/2),size(mesh_space,3));
@@ -72,7 +69,7 @@ for counter = startIter:endIter
     kgrid.t_array = T_array;
     sensor.mask = zeros(Nx, Ny, Nz);
     sensor.mask(:,:,end) = 1;
-    sensor_data = kspaceFirstOrder3DC(kgrid, medium, source, sensor, 'PMLInside', false);
+    sensor_data = kspaceFirstOrder3DG(kgrid, medium, source, sensor, 'PMLInside', false);
     Fs = 1/dt;
     N = length(T_array);
     sensor_data_3D = reshape(sensor_data,[Nx Ny N]);

@@ -1,4 +1,4 @@
-function Clotgen1(startIter, endIter)
+function Clotgen(startIter, endIter)
     % If not provided, use default values for startIter and endIter
     if nargin < 2
         startIter = 1;
