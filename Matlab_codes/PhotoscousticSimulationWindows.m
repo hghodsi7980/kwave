@@ -7,7 +7,7 @@ end
 for counter = startIter:endIter
     clearvars('-except','counter');
     disp(counter);
-    load(sprintf('yourpath to dataset',counter));
+    load(sprintf('dataset%d.mat',counter));
     x_arr = linspace(round(-size(mesh_space,1)/2),round(size(mesh_space,1)/2),size(mesh_space,1));
     y_arr = linspace(round(-size(mesh_space,2)/2),round(size(mesh_space,2)/2),size(mesh_space,2));
     z_arr = linspace(round(-size(mesh_space,3)/2),round(size(mesh_space,3)/2),size(mesh_space,3));
@@ -34,11 +34,15 @@ for counter = startIter:endIter
     vmcmedium.absorption_coefficient = repmat(absorption_coefficients(:),6,1);
     vmcmedium.scattering_coefficient = repmat(scattering_coefficients(:),6,1);
     vmcmedium.refractive_index = repmat(refractive_indexes(:),6,1);
+    clearvars('scattering_coefficients','absorption_coefficients','scattering_anisotropies','refractive_indexes');
     vmcboundary = createBoundary(vmcmesh, vmcmedium);   % create a boundary for the mesh
     % Create a light source
     lightsource = findBoundaries(vmcmesh, 'direction', [0 0 0], [0 0 1],max([size(mesh_space,1)/2,size(mesh_space,2)/2,size(mesh_space,3)/2])/1000);
     vmcboundary.lightsource(lightsource) = {'cosinic'};
+    clearvars('-except','counter','vmcboundary','vmcmesh','vmcmedium');
     solution = ValoMC(vmcmesh, vmcmedium, vmcboundary);
+    clearvars ('vmcboundary','vmcmedium','vmcmesh');
+    load(sprintf('dataset%d.mat',counter));
     TR = triangulation(double(vmcmesh.H),vmcmesh.r); % create a matlab
     locations = [X(:) Y(:) Z(:)];              % form a 2D matrix from all
     indices = pointLocation(TR,locations);     % query the indices of the

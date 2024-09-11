@@ -1,0 +1,6 @@
+function total_volume = calculate_volume(mesh_space)
+[m n p] = size(mesh_space);
+
+% Calculate the total volume of non-zero elements (sum of all 1's in the filled matrix)
+total_volume = (4/3)*(pi)
+end
