@@ -1,0 +1,98 @@
+% Parameters
+numPoints = 5000;
+a = round(max(20, abs(normrnd(75, 25))));
+b = round(max(20, abs(normrnd(75, 25))));
+c = round(max(20, abs(normrnd(75, 25))));
+
+% Generate random points on ellipsoid
+theta = 2 * pi * rand(numPoints, 1);
+phi = pi * rand(numPoints, 1);
+x_ellipsoid = a * sin(phi) .* cos(theta);
+y_ellipsoid = b * sin(phi) .* sin(theta);
+z_ellipsoid = c * cos(phi);
+
+% Generate ellipsoid points with random displacements
+x_displacement = a*rand(numPoints, 1);
+y_displacement = b*rand(numPoints, 1);
+z_displacement = c*rand(numPoints, 1);
+x = x_ellipsoid + x_displacement;
+y = y_ellipsoid + y_displacement;
+z = z_ellipsoid + z_displacement;
+
+% Create Delaunay triangulation
+DT = delaunayTriangulation(x, y, z);
+
+% Calculate convex hull
+[C, volume] = convexHull(DT);
+
+% Plot the surface of the ellipsoid
+trisurf(C,DT.Points(:,1),DT.Points(:,2),DT.Points(:,3), ...
+    'EdgeColor','black','FaceColor','none')
+view(125, 25);
+axis equal
+hold on
+
+% Generate random points for clusters
+min_points = 4000;
+num_clusters = 1
+number_of_overall_points = round(max(min_points, abs(normrnd(10000, 2000))));
+cluster_centers = DT.Points;
+num_points_to_exclude = size(DT.Points, 1) - num_clusters;
+indices_to_exclude = randperm(size(cluster_centers, 1), num_points_to_exclude);
+cluster_centers(indices_to_exclude, :) = [];
+
+% Define bandwidth for Gaussian kernel
+bandwidth = 1000 / num_clusters;
+coordinates_to_check = [];
+
+% Generate points using KDE around each cluster center
+for i = 1:num_clusters
+    cluster_points = mvnrnd(cluster_centers(i, :), bandwidth^2 * eye(3), round(number_of_overall_points / num_clusters));
+    coordinates_to_check = [coordinates_to_check; cluster_points];
+end
+
+% Check if points are inside or on the surface of the ellipsoid
+in_or_on_ellipsoid = ~isnan(pointLocation(DT, coordinates_to_check));
+
+% Select inside points
+inside_points = coordinates_to_check(in_or_on_ellipsoid, :);
+Points = unique(inside_points, 'rows');
+
+% Plot the inside points
+scatter3(Points(:,1), Points(:,2), Points(:,3), '.', 'b');
+
+% Initialize an array to store the number of connections for each point
+num_connections = zeros(size(Points, 1), 1);
+
+% Find the 3 or 4 nearest neighbors for each point
+max_connections = 4;
+for i = 1:size(Points, 1)
+    point = Points(i, :);
+    
+    % Find nearest neighbors excluding the point itself
+    neighbors_idx = knnsearch(Points, point, 'K', max_connections + 1); % K+1 to include the point itself
+    neighbors_idx(1) = []; % Remove the point itself from neighbors
+    
+    % Ensure the point doesn't get connected more than 4 times
+    for j = 1:length(neighbors_idx)
+        neighbor_idx = neighbors_idx(j);
+        
+        % Check if the point and the neighbor already have enough connections
+        if num_connections(i) < max_connections && num_connections(neighbor_idx) < max_connections
+            % Plot the connection
+            neighbor_point = Points(neighbor_idx, :);
+            plot3([point(1) neighbor_point(1)], [point(2) neighbor_point(2)], [point(3) neighbor_point(3)], 'r-');
+            
+            % Update connection counts for both the point and the neighbor
+            num_connections(i) = num_connections(i) + 1;
+            num_connections(neighbor_idx) = num_connections(neighbor_idx) + 1;
+        end
+        
+        % Stop connecting if the current point reaches the max number of connections
+        if num_connections(i) >= max_connections
+            break;
+        end
+    end
+end
+
+hold off

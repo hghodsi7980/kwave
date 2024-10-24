@@ -1,0 +1,92 @@
+% Step 1: Generate the sphere with radius = 50
+radius_sphere = 50;
+[x_sphere, y_sphere, z_sphere] = sphere(100);  % Higher resolution sphere
+x_sphere = x_sphere * radius_sphere;
+y_sphere = y_sphere * radius_sphere;
+z_sphere = z_sphere * radius_sphere;
+
+% Plot the sphere
+figure;
+surf(x_sphere, y_sphere, z_sphere, 'FaceAlpha', 0.1, 'EdgeColor', 'none');
+axis equal;
+hold on;
+
+% Step 2: Define RBC parameters
+scaling_factor_RBC = 1;
+num_RBCs = 1;
+rbc_diameter = 8 / scaling_factor_RBC;  % Assume this is the rough RBC size
+
+% Step 3: Randomly generate positions inside the sphere and ensure no intersections
+rbc_positions = [];
+min_distance = rbc_diameter * 2;  % Minimum distance between RBC centers to avoid intersection
+
+for i = 1:num_RBCs
+    while true
+        % Generate a random point inside the sphere
+        theta = 2 * pi * rand();
+        phi = acos(2 * rand() - 1);
+        r = radius_sphere * rand()^(1/3);  % Cubic root for uniform distribution inside sphere
+        rbc_center = [r * sin(phi) * cos(theta), r * sin(phi) * sin(theta), r * cos(phi)];
+        
+        % Check if the new RBC intersects with any existing RBCs
+        if isempty(rbc_positions)
+            % First RBC, no need to check
+            rbc_positions = [rbc_positions; rbc_center];
+            break;
+        else
+            % Check distance from all previous RBC centers
+            distances = sqrt(sum((rbc_positions - rbc_center).^2, 2));
+            if all(distances > min_distance)
+                rbc_positions = [rbc_positions; rbc_center];
+                break;
+            end
+        end
+    end
+end
+
+% Step 4: Generate and plot the RBCs at the random positions
+for i = 1:num_RBCs
+    center_point_t = rbc_positions(i, :);
+    cell_rotations = rand(1, 3) * pi;
+    
+    % RBC code as provided (adapt to each position and rotation)
+    d = 8 / scaling_factor_RBC;
+    br = 1 / scaling_factor_RBC;
+    h = 2.12 / scaling_factor_RBC;
+    P = -(d^2 / 2) + (h^2 / 2) * ((d^2 / br^2) - 1) - h^2 / 2 * ((d^2 / br^2) - 1) * sqrt(1 - (br^2 / h^2));
+    Q = P * (d^2 / br^2) + (br^2 / 4) * (d^4 / br^4 - 1);
+    R = -P * (d^2 / 4) - d^4 / 16;
+    
+    [x_rbc, y_rbc, z_rbc] = meshgrid(-10 + center_point_t(1):0.5:10 + center_point_t(1), ...
+                                     -10 + center_point_t(2):0.5:10 + center_point_t(2), ...
+                                     -10 + center_point_t(3):0.5:10 + center_point_t(3));
+    % Apply rotations
+    x_rbc_rot = x_rbc - center_point_t(1);
+    y_rbc_rot = y_rbc - center_point_t(2);
+    z_rbc_rot = z_rbc - center_point_t(3);
+    x_rbc_temp = x_rbc_rot;
+    x_rbc_rot = x_rbc_temp * cos(cell_rotations(1)) - z_rbc_rot * sin(cell_rotations(1));
+    z_rbc_rot = x_rbc_temp * sin(cell_rotations(1)) + z_rbc_rot * cos(cell_rotations(1));
+    y_rbc_temp = y_rbc_rot;
+    y_rbc_rot = y_rbc_temp * cos(cell_rotations(2)) + z_rbc_rot * sin(cell_rotations(2));
+    z_rbc_rot = -y_rbc_temp * sin(cell_rotations(2)) + z_rbc_rot * cos(cell_rotations(2));
+    x_rbc_temp = x_rbc_rot;
+    x_rbc_rot = x_rbc_temp * cos(cell_rotations(3)) - y_rbc_rot * sin(cell_rotations(3));
+    y_rbc_rot = x_rbc_temp * sin(cell_rotations(3)) + y_rbc_rot * cos(cell_rotations(3));
+    
+    % Equation for RBC shape
+    eq = ((x_rbc_rot).^2 + (y_rbc_rot).^2 + (z_rbc_rot).^2).^2 + P * ((x_rbc_rot).^2 + (y_rbc_rot).^2) + Q * (z_rbc_rot).^2 + R;
+    v_rbc = zeros(size(x_rbc));
+    v_rbc(eq <= 0) = 1;
+    rbc_x = x_rbc(v_rbc == 1);
+    rbc_y = y_rbc(v_rbc == 1);
+    rbc_z = z_rbc(v_rbc == 1);
+    
+    % Plot the RBC
+    plot3(rbc_x, rbc_y, rbc_z, 'r.', 'MarkerSize', 5);
+end
+
+hold off;
+title('5 RBCs in Random Positions Inside a Sphere (Non-Intersecting)');
+axis equal;
+grid on;
