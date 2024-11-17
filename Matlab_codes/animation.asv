@@ -24,7 +24,7 @@ outputVideo.FrameRate = 30; % Set the frame rate (adjust as needed)
 open(outputVideo);
 
 % Number of frames and rotation increment
-nFrames = 360; % Adjust the number of frames for smoother rotation
+nFrames = 720; % Adjust the number of frames for smoother rotation
 rotationStep = 360 / nFrames;
 
 % Set initial CameraViewAngle for zoom effect
@@ -33,12 +33,12 @@ zoomInAngle = normalViewAngle / 20; % Zoom in to half the angle (adjust this val
 
 % Loop through and rotate the view with zoom
 for k = 1:nFrames
-    disp(k*100/nFrames)
+    disp(k*100/nFrame)
     delete(findall(hFig, 'Type', 'datatip'));
     delete(findall(hFig, 'Type', 'text'));
     delete(findall(hFig, 'Type', 'annotation'));
     % Rotate the view
-    view(ax, [k *   rotationStep, 30]); % [Azimuth, Elevation], adjust elevation if needed
+    view(ax, [k * rotationStep, 30]); % [Azimuth, Elevation], adjust elevation if needed
     
     % Apply zoom effect: first half zoom in, second half zoom out
     if k <= nFrames / 2

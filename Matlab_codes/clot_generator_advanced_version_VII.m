@@ -4,7 +4,7 @@
 
 clear; clc; close all;
 go_forward = false;
-seed = 120;
+seed = 12;
 while ~ go_forward
     % Set the random seed for reproducibility
     seed = seed+1;
@@ -13,10 +13,10 @@ while ~ go_forward
     % ==========================================================
     % Section 0: Initialize Parameters
     % ==========================================================
-    numSpheres = max(randi(50),5); % Number of spherical inclusions
-    max_diameter_factor = 0.2; % Maximum sphere diameter as a fraction of the largest dimension
-    fibrin_concentration = 0.4+3*rand() ; % Generate random fibrin concentration between 0.2 and 2 g/L
-    clot_volume = 1e7+1e8*rand(); % Generate a random clot volume between 8e3 and 3.7e7 um3
+    numSpheres = max(randi(20),5); % Number of spherical inclusions
+    max_diameter_factor = 0.4; % Maximum sphere diameter as a fraction of the largest dimension
+    fibrin_concentration = 0.4+0.5*rand() ; % Generate random fibrin concentration between 0.2 and 2 g/L
+    clot_volume = 1e6+1e7*rand(); % Generate a random clot volume between 8e3 and 3.7e7 um3
     Window_size = 200; % in um3
     platelet_ratio = 0.3; % Ratio of platelets to be plotted
     density_threshold = 0.001; % Minimum density threshold for nodes between inclusions (nodes/um^3)
@@ -28,7 +28,7 @@ while ~ go_forward
     % Define a prefered directional vector
     preferred_direction = [1, 1, 1];
     preferred_direction = preferred_direction / norm(preferred_direction); % Normalize
-    direction_weight = 0.8; % Weight factor for directional alignment (adjust this based on your preference)
+    direction_weight = 0; % Weight factor for directional alignment (adjust this based on your preference)
 
     % ==========================================================
     % Section 1: Generate Inclusions
@@ -266,7 +266,7 @@ for i = 1:size(bonds, 1)
     plot3([Points(bonds(i, 1), 1), Points(bonds(i, 2), 1)], ...
         [Points(bonds(i, 1), 2), Points(bonds(i, 2), 2)], ...
         [Points(bonds(i, 1), 3), Points(bonds(i, 2), 3)], 'y-');
-    %pause(1e-12);
+    %%pause(1e-12);
 end
 axis equal;
 grid on
@@ -287,7 +287,7 @@ hold off
 % ==========================================================
 % Parameters for strain energy relaxation and optimization
 max_iterations = 2000;
-energy_threshold = 0.07;
+energy_threshold = 0.05;
 k_fibrin = 1;
 initial_step_size = 0.001;
 step_size = initial_step_size;
@@ -473,7 +473,7 @@ components = {};
 for i = 1:numPoints
     if ~visited(i)
         % Start a new BFS from the unvisited node
-        queue = [i];
+        queue = i;
         component = [];
         while ~isempty(queue)
             current = queue(1);
@@ -551,7 +551,7 @@ for i = 1:size(bonds, 1)
     P0 = Points(bonds(i, 1), :);  % Start point of the bond
     P2 = Points(bonds(i, 2), :);  % End point of the bond
     midpoint = (P0 + P2) / 2;  % Midpoint for control point
-    random_curvature = (rand(1, 3) - 0.5) * 1.5;  % Random curvature
+    random_curvature = (rand(1, 3) - 0.5)*2;  % Random curvature
     P1 = midpoint + random_curvature;  % Control point for Bezier curve
     num_bond_points = 20;
     t = linspace(0, 1, num_bond_points);  % Parameter for Bezier curve
@@ -702,7 +702,7 @@ function [bonds, bond_lengths] = generate_bonds_with_valency(Points, target_vale
 numPoints = size(Points, 1);
 bonds = [];
 connection_counts = zeros(numPoints, 1); % Track the number of connections per point
-target_connections = round(geornd(1 / target_valency, numPoints, 1) + 1); % Shifted geometric distribution
+target_connections = round(geornd(1 /(target_valency-2), numPoints, 1)+target_valency); % Shifted geometric distribution
 
 % Generate bonds to match the target valency distribution
 for i = 1:numPoints
