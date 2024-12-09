@@ -7,14 +7,14 @@
 % addpath(genpath('/home/hghodsi/Matlab_codes'))
 
 simulation_size = 0;
-array_size = 50000;
-T = 3e-6;
+array_size = 100000;
+T = 5e-6;
 dt = T/array_size;
 T_array = linspace(0,T,array_size);
 % sensor_data_avr = zeros(average_size,size(T_array,2));
 % mex   -DUSE_OMP C:\Git\kwave\software_packages\ValoMC-master\ValoMC-master\cpp\2d\MC2Dmex.cpp COMPFLAGS='\$COMPFLAGS /openmp'
 %mex   -DUSE_OMP /home/hghodsi/Software_packages/ValoMC-master/ValoMC-master/cpp/2d/MC2Dmex.cpp COMPFLAGS='\$COMPFLAGS -fopenmp' CXXFLAGS='\$CXXFLAGS -fopenmp' LDFLAGS='\$LDFLAGS -fopenmp'
-for index = 1:1000
+for index = 1:1
     h = waitbar(0, 'Progress'); % Create a progress bar window
     waitbar(index / 1000, h, sprintf('Overall Progress: %d%%', round((index / 1000) * 100)));
     pause(0.1); % Optional: Add a delay to slow down the progress for demonstration purposes
@@ -25,13 +25,13 @@ for index = 1:1000
     dy = 1e-6;        % grid point spacing in the y direction [m]
     kgrid = kWaveGrid(Nx, dx, Ny, dy);
     vessel_mask = ones(Nx,Ny);   % all of the ROI for the test
-    clot_radious = 1e-6*randi([100 500],1);            % clot radius between 100 and 500
+    clot_radious = 1e-6*250;            % clot radius between 100 and 500
     clot_mask = makeDisc(Nx,Ny,Nx/2,Ny/2,round(clot_radious/dx));
-    RBC_radious = round(4e-6/dx);
+    RBC_radious = round(5e-6/dx);
     rng('shuffle');
-    RBC_count = randi([round(2e7*clot_radious) round(7e7*clot_radious)],1);
+    RBC_count = 5000;
     rng('shuffle');
-    Fibrin_count = randi([round(2e7*clot_radious) round(7e7*clot_radious)],1);
+    Fibrin_count = 0;
     average_fibrin_length = round(100e-6/dx);
     output_mask_clot = fill_with_RBC(Nx,Ny,clot_mask,RBC_count,RBC_radious);
     output_mask_clot = output_mask_clot+fill_with_fibrin(Nx, Ny, clot_mask, Fibrin_count, average_fibrin_length);
@@ -122,7 +122,7 @@ for index = 1:1000
 
 
     %% process the data
-    % plot(kgrid.t_array,sensor_data(250,:));
+    plot(kgrid.t_array,sensor_data(500,:));
     fft_r = zeros(Nx,N/2);
     for i = 1:Nx
         disp(i)
@@ -137,7 +137,7 @@ for index = 1:1000
     file_name = sprintf("New_data_a%d.mat",index);
     save(file_name,'frequencies','spectrum','output_mask_clot', "dx" , "dy" , "dt");
 
-    % p_xy = kspaceLineRecon(sensor_data.', dy, kgrid.dt, medium.sound_speed(1,1), 'Plot', true);
+    p_xy = kspaceLineRecon(sensor_data.', dy, kgrid.dt, medium.sound_speed(1,1), 'Plot', true);
 
 close(h);
 end

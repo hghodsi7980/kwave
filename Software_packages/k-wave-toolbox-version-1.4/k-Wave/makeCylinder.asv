@@ -24,7 +24,7 @@ if cz == 0
 end
 
 % Generate grid points relative to the center
-[X, Y, Z] = meshgrid(1:Nx, 1:Ny, 1:Nz);
+[X, Y, Z] = ndgrid(1:Nx, 1:Ny, 1:Nz);
 X = X - cx;
 Y = Y - cy;
 Z = Z - cz;
@@ -41,7 +41,7 @@ rotated_Y = reshape(rotated_coords(2, :), size(Y));
 rotated_Z = reshape(rotated_coords(3, :), size(Z));
 
 % Map rotated coordinates back to the original grid
-[Xq, Yq, Zq] = meshgrid(1:Nx, 1:Ny, 1:Nz);
+[Xq, Yq, Zq] = ndgrid(1:Nx, 1:Ny, 1:Nz);
 
 % Interpolate the rotated cylinder onto the grid
 rotated_cylinder = interp3(X, Y, Z, double(cylinder_mask), ...
@@ -55,12 +55,4 @@ function R = makeRotationMatrix(orientation)
 % MAKEROTATIONMATRIX Generate a 3x3 rotation matrix from Euler angles (orientation).
 
 phi = orientation(1); % Rotation about x-axis
-theta = orientation(2); % Rotation about y-axis
-psi = orientation(3); % Rotation about z-axis
-
-Rx = [1, 0, 0; 0, cos(phi), -sin(phi); 0, sin(phi), cos(phi)];
-Ry = [cos(theta), 0, sin(theta); 0, 1, 0; -sin(theta), 0, cos(theta)];
-Rz = [cos(psi), -sin(psi), 0; sin(psi), cos(psi), 0; 0, 0, 1];
-
-R = Rz * Ry * Rx; % Combine rotations
-end
+theta = orientation(2); %

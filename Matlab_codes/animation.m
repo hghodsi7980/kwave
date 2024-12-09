@@ -19,7 +19,7 @@ grid off;
 set(hFig, 'Color', 'k');
 
 % Set up video writer
-outputVideo = VideoWriter(sprintf('rotation_with_zoom_animation_black_bg %d.avi',jj));
+outputVideo = VideoWriter(sprintf('rotation_with_zoom_animation_blackkk_bg %d.avi',jj));
 outputVideo.FrameRate = 30; % Set the frame rate (adjust as needed)
 open(outputVideo);
 

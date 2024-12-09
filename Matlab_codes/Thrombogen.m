@@ -1,10 +1,9 @@
 % ==========================================================
 % Fibrin Network Simulation Script
 % ==========================================================
-
-clear; clc; close all;
-seed = 0;
-for counter = 1:10
+function Thrombogen(counter)
+seed = 10;
+    fprintf("progress: %f\n",100*counter/18330);
     go_forward = false;
     seed = seed+counter;
     while ~ go_forward
@@ -16,10 +15,10 @@ for counter = 1:10
         % Section 0: Initialize Parameters
         % ==========================================================
         numSpheres = max(randi(15),5); % Number of spherical inclusions
-        max_diameter_factor = 0.2; % Maximum sphere diameter as a fraction of the largest dimension
-        fibrin_concentration = 0.4+0.6*rand() ; % Generate random fibrin concentration between 0.2 and 2 g/L
+        max_diameter_factor = 0.5; % Maximum sphere diameter as a fraction of the largest dimension
+        fibrin_concentration = 0.4+0.8*rand() ; % Generate random fibrin concentration between 0.2 and 2 g/L
         clot_volume = 1e6+2e7*rand(); % Generate a random clot volume between 8e3 and 3.7e7 um3
-        Window_size = 100; % in um3
+        Window_size = 150; % in um3
         platelet_ratio = 0.3; % Ratio of platelets to be plotted
         density_threshold = 0.001; % Minimum density threshold for nodes between inclusions (nodes/um^3)
         scaling_factor_RBC = 1;
@@ -82,47 +81,12 @@ for counter = 1:10
                 end
             end
         end
-
-        % Create figure
-        figureHandle = figure;
-
-        % Maximize the figure window
-        set(figureHandle, 'WindowState', 'maximized');
-        % Set the background color to black
-        set(figureHandle, 'Color', 'k');
-        hold on
-
-        % Plot spheres
-        for i = 1:length(sphere_radii)
-            [x_sphere, y_sphere, z_sphere] = sphere(20);  % Create a sphere
-            x_sphere = x_sphere * sphere_radii(i) + sphere_centers(i, 1);
-            y_sphere = y_sphere * sphere_radii(i) + sphere_centers(i, 2);
-            z_sphere = z_sphere * sphere_radii(i) + sphere_centers(i, 3);
-            surf(x_sphere, y_sphere, z_sphere, 'FaceAlpha', 0.3, 'EdgeColor', 'none');
-        end
-        axis equal;
-        grid on
-        grid minor
-        % Set font properties and axis color to white
-        set(gca, 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic', ...
-            'XColor', 'w', 'YColor', 'w', 'ZColor', 'w', 'Color', 'k'); % 'Color' sets the axis background color, 'XColor' and 'YColor' set axis line and tick color
-
-        % Set title, xlabel, ylabel with the same font settings
-        title('Inclusion volumes', 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic', 'Color', 'White');
-        xlabel('X(um)', 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic', 'Color', 'White');
-        ylabel('Y(um)', 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic', 'Color', 'White');
-        zlabel('Z(um)', 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic', 'Color', 'White');
-        view(3)
-        hold off
-
-
-
         % ==========================================================
         % Section 2: Calculate Effective Clot Volume
         % ==========================================================
         % Calculate total volume of spherical inclusions
         clot_volume_um3 = calculate_clot_volume(sphere_centers, sphere_radii);
-        disp(['Real clot volume :',num2str(clot_volume_um3)]);
+        %disp(['Real clot volume :',num2str(clot_volume_um3)]);
         total_inclusion_volume_um3 = sum((4 / 3) * pi * (sphere_radii.^3));
         % Calculate effective clot volume (excluding inclusions)
         effective_clot_volume_um3 = clot_volume_um3 - total_inclusion_volume_um3;
@@ -188,7 +152,7 @@ for counter = 1:10
             Points = [Points; cluster_points];
         end
 
-        density = plot_density_based_points(Points, 10,false);
+        density = plot_density_based_points(Points, 10);
         if ~isempty(density)
             std_density = std(density(:,2)/max(density(:,2)));
         else
@@ -196,35 +160,13 @@ for counter = 1:10
         end
 
         if std_density > 0.25
-            disp('Not good enough!')
-            disp(std_density)
+            %disp('Not good enough!')
+            %disp(std_density)
             go_forward = false;
         else
             go_forward = true;
         end
     end
-
-    % Create figure
-    figureHandle = figure;
-    % Maximize the figure window
-    set(figureHandle, 'WindowState', 'maximized');
-    % Set the background color to black
-    set(figureHandle, 'Color', 'k');
-    hold on
-    scatter3(Points(:,1), Points(:,2), Points(:,3), '.','g');
-    axis equal;
-    grid on
-    grid minor
-    % Set font properties and axis color to white
-    set(gca, 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic', ...
-        'XColor', 'w', 'YColor', 'w', 'ZColor','w', 'Color', 'k'); % 'Color' sets the axis background color, 'XColor' and 'YColor' set axis line and tick color
-    % Set title, xlabel, ylabel with the same font settings
-    title('initial node positions', 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic','Color','White');
-    xlabel('X(um)', 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic','Color','White');
-    ylabel('Y(um)', 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic','Color','White');
-    zlabel('Z(um)', 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic','Color','White');
-    view(3)
-    hold off
 
     % ==========================================================
     % Section 5: Generate Bonds Based on Valency Distribution
@@ -256,40 +198,12 @@ for counter = 1:10
         end
     end
 
-    % Create figure
-    figureHandle = figure;
-    % Maximize the figure window
-    set(figureHandle, 'WindowState', 'maximized');
-    % Set the background color to black
-    set(figureHandle, 'Color', 'k');
-    hold on
-    scatter3(Points(:,1), Points(:,2), Points(:,3), '.','g');
-    for i = 1:size(bonds, 1)
-        plot3([Points(bonds(i, 1), 1), Points(bonds(i, 2), 1)], ...
-            [Points(bonds(i, 1), 2), Points(bonds(i, 2), 2)], ...
-            [Points(bonds(i, 1), 3), Points(bonds(i, 2), 3)], 'y-');
-        %%pause(1e-12);
-    end
-    axis equal;
-    grid on
-    grid minor
-    % Set font properties and axis color to white
-    set(gca, 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic', ...
-        'XColor', 'w', 'YColor', 'w', 'ZColor','w', 'Color', 'k'); % 'Color' sets the axis background color, 'XColor' and 'YColor' set axis line and tick color
-    % Set title, xlabel, ylabel with the same font settings
-    title('initial bonds', 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic','Color','White');
-    xlabel('X(um)', 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic','Color','White');
-    ylabel('Y(um)', 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic','Color','White');
-    zlabel('Z(um)', 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic','Color','White');
-    view(3)
-    hold off
-
     % ==========================================================
     % Section 7: Strain Energy Relaxation with Balanced Penalties
     % ==========================================================
     % Parameters for strain energy relaxation and optimization
-    max_iterations = 2000;
-    energy_threshold = 0.05;
+    max_iterations = 1000;
+    energy_threshold = 0.07;
     k_fibrin = 1;
     initial_step_size = 0.001;
     step_size = initial_step_size;
@@ -350,22 +264,11 @@ for counter = 1:10
         Jensen_Shannon_Divergence = 0.5 * (KL_P1_avg + KL_P2_avg);
 
         if isnan(Jensen_Shannon_Divergence)
-            disp('NaN detected in Jensen-Shannon Divergence. Stopping iteration.');
+            %disp('NaN detected in Jensen-Shannon Divergence. Stopping iteration.');
             break;
         end
 
-        disp(['Jensen-Shannon Divergence: ', num2str(Jensen_Shannon_Divergence)]);
-
-        % Plot the bond length distribution at each iteration
-        figure(100); clf;
-        histogram(bond_lengths, 'Normalization', 'pdf', 'FaceAlpha', 0.6, 'FaceColor', 'b');
-        hold on;
-        plot(x_values, pdf1_normalized, 'r-', 'LineWidth', 2);
-        title(['Bond Length Distribution at Iteration ', num2str(iteration)]);
-        xlabel('Bond Length (\mum)');
-        ylabel('Probability Density');
-        legend('Simulated Bond Lengths', 'Theoretical Log-Normal Fit');
-        hold off;
+        %disp(['Jensen-Shannon Divergence: ', num2str(Jensen_Shannon_Divergence)]);
 
         % Compute forces considering the current bond length distribution and move points
         forces = compute_forces_log_normal(bonds, bond_lengths, lambda, zeta_squared, k_fibrin, Points);
@@ -397,7 +300,7 @@ for counter = 1:10
         if iteration > 1 && Jensen_Shannon_Divergence >= prev_Jensen_Shannon_Divergence
             step_size = max(step_size * 0.8, min_step_size);
             k_fibrin = min(k_fibrin * 2, 20); % Increase k_fibrin significantly for more exploration
-            disp(['Step size reduced to ', num2str(step_size), ', k_fibrin increased to ', num2str(k_fibrin), ' at iteration ', num2str(iteration)]);
+            %disp(['Step size reduced to ', num2str(step_size), ', k_fibrin increased to ', num2str(k_fibrin), ' at iteration ', num2str(iteration)]);
         else
             step_size = min(step_size * 1.1, max_step_size);
             k_fibrin = max(k_fibrin * 0.9, 1); % Gradually reduce k_fibrin if improving
@@ -415,7 +318,7 @@ for counter = 1:10
             % Apply a small random perturbation to all points
             perturbation_strength = 0.05 * target_mean_length; % Relative to target mean length
             Points = Points + perturbation_strength * (rand(size(Points)) - 0.5);
-            disp(['Applied random perturbations to points at iteration ', num2str(iteration)]);
+            %disp(['Applied random perturbations to points at iteration ', num2str(iteration)]);
             kl_stable_count = 0; % Reset the stable count
         end
 
@@ -425,7 +328,7 @@ for counter = 1:10
 
         % Check if the system has converged
         if Jensen_Shannon_Divergence < energy_threshold
-            disp(['Converged at iteration ', num2str(iteration)]);
+            %disp(['Converged at iteration ', num2str(iteration)]);
             break;
         end
     end
@@ -443,7 +346,7 @@ for counter = 1:10
     % Loop over each node to identify problematic ones
     for i = 1:numPoints
         % Find bonds connected to the current node
-        connected_bonds = find(bonds(:, 1) == i | bonds(:, 2) == i);
+        connected_bonds = bonds(:, 1) == i | bonds(:, 2) == i;
         connected_lengths = bond_lengths(connected_bonds);
 
         % Check if there are multiple super-long bonds connected to this node
@@ -538,34 +441,9 @@ for counter = 1:10
         connection_counts(bonds(i, 2)) = connection_counts(bonds(i, 2)) + 1;
     end
 
-
-    % Plot valency distribution
-    valency = connection_counts;
-    figure;
-    histogram(valency, 50, 'Normalization', 'pdf', 'FaceAlpha', 0.6, 'FaceColor', 'b');
-
-    title('Valency Distribution Compared to Shifted Geometric Distribution');
-    xlabel('Number of Connections (Valency)');
-    ylabel('Probability Density');
-    hold off;
-
-
-    % ==========================================================
-    density = plot_density_based_points(Points, 10,true);
     % ==========================================================
     % Section 11: Plot Final Network with Bezier Curves, Platelets, and RBCs in Sphere Inclusions
     % ==========================================================
-    % Create figure
-    figureHandle = figure;
-    % Maximize the figure window
-    set(figureHandle, 'WindowState', 'maximized');
-    % Set the background color to black
-    set(figureHandle, 'Color', 'k');
-    hold on
-    axis off
-    axis equal;
-    view(3);
-    % Plot Bezier curves for bonds
     for i = 1:size(bonds, 1)
         P0 = Points(bonds(i, 1), :);  % Start point of the bond
         P2 = Points(bonds(i, 2), :);  % End point of the bond
@@ -575,40 +453,12 @@ for counter = 1:10
         num_bond_points = 20;
         t = linspace(0, 1, num_bond_points);  % Parameter for Bezier curve
         bezier_curve = (1 - t').^2 * P0 + 2 * (1 - t') .* t' * P1 + t'.^2 * P2;  % Bezier curve formula
-        %pause(1e-12);
-        % Plot the Bezier curve
-        plot3(bezier_curve(:,1), bezier_curve(:,2), bezier_curve(:,3), 'g-', 'LineWidth', 1);
     end
-    % Set font properties and axis color to white
-    set(gca, 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic', ...
-        'XColor', 'w', 'YColor', 'w', 'ZColor','w', 'Color', 'k'); % 'Color' sets the axis background color, 'XColor' and 'YColor' set axis line and tick color
-    % Set title, xlabel, ylabel with the same font settings
-    title('relaxed bonds', 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic','Color','White');
-    xlabel('X(um)', 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic','Color','White');
-    ylabel('Y(um)', 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic','Color','White');
-    zlabel('Z(um)', 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic','Color','White');
-    view(3)
-
-
-
     % Plot platelets at nodes with 4 connections (cross-links)
     platelet_indices = find(connection_counts == 4);
     num_platelets_to_plot = round(platelet_ratio * length(platelet_indices));
     selected_indices = randsample(platelet_indices, num_platelets_to_plot);
 
-    % Plot the selected platelets (as spheres)
-    platelet_diameter = 3; % Platelet diameter in microns
-    for j = 1:num_platelets_to_plot
-        index = selected_indices(j);
-        [x_sphere, y_sphere, z_sphere] = sphere(10);  % Create a sphere with resolution 10
-        x_sphere = x_sphere * (platelet_diameter / 2) + Points(index, 1);
-        y_sphere = y_sphere * (platelet_diameter / 2) + Points(index, 2);
-        z_sphere = z_sphere * (platelet_diameter / 2) + Points(index, 3);
-        %pause(1e-12);
-        surf(x_sphere, y_sphere, z_sphere, 'FaceAlpha', 0.8, 'EdgeColor', 'none', 'FaceColor', 'blue');
-    end
-
-    % Plot RBCs inside each sphere inclusion
     min_distance = rbc_diameter;  % Distance between RBCs (just beside, no intersection)
     rbc_points_all = [];  % to save the RBC points
     for i = 1:length(sphere_radii)
@@ -694,22 +544,15 @@ for counter = 1:10
             rbc_points = [rbc_x(:), rbc_y(:), rbc_z(:)];
             if size(rbc_points, 1) >= 4  % Ensure there are enough points for convex hull
                 K = convhull(rbc_points);  % Get convex hull
-                %pause(1e-12);
-                trisurf(K, rbc_points(:, 1), rbc_points(:, 2), rbc_points(:, 3), 'FaceAlpha', 0.3, 'EdgeColor', 'none', 'FaceColor', 'r');  % Plot RBC surface
                 rbc_points_all = [rbc_points_all ; rbc_points];
             end
         end
     end
 
-    % figHandles = findall(0, 'Type', 'figure'); % Find all open figures
-    % for i = 1:length(figHandles)
-    %     saveas(figHandles(i), sprintf('figure%d_%d.fig', i,counter)); % Save as PNG, or change to desired format
-    % end
-
     % ==========================================================
     % Define the cropping window and matrix size to save the clot block
     % ==========================================================
-    Window_size_crop = 60; % Total range in each direction is 120um (-60 to 60)
+    Window_size_crop = 120; % Total range in each direction is 120um (-60 to 60)
     Resolution = 240; % Number of voxels per axis
     VoxelSize = Window_size_crop / Resolution; % Size of each voxel in um
     Window_center = mean(Points,1);
@@ -763,75 +606,48 @@ for counter = 1:10
         end
     end
 
-    % ==========================================================
-    % Process platelets
-    % ==========================================================
-    for i = 1:length(platelet_indices)
-        platelet_pos = Points(platelet_indices(i), :);
+% ==========================================================
+% Process platelets
+% ==========================================================
+platelet_radius = 1.5; % Radius of the platelet in microns
 
-        % Check if the platelet is within the cropping window
-        if all(platelet_pos >= crop_min & platelet_pos <= crop_max)
-            % Map platelet position to matrix indices
-            platelet_idx = map_to_matrix(platelet_pos);
-            if all(platelet_idx > 0 & platelet_idx <= Resolution)
-                ClotMatrix(platelet_idx(1), platelet_idx(2), platelet_idx(3)) = 3; % Platelet
+for i = 1:length(platelet_indices)
+    platelet_pos = Points(platelet_indices(i), :);
+    
+    % Check if the platelet is within the cropping window
+    if all(platelet_pos >= crop_min & platelet_pos <= crop_max)
+        % Map platelet center position to matrix indices
+        platelet_center_idx = map_to_matrix(platelet_pos);
+
+        if all(platelet_center_idx > 0 & platelet_center_idx <= Resolution)
+            % Generate a sphere of platelet points around the center
+            [x_sphere, y_sphere, z_sphere] = ndgrid(...
+                (platelet_pos(1) - platelet_radius):VoxelSize:(platelet_pos(1) + platelet_radius), ...
+                (platelet_pos(2) - platelet_radius):VoxelSize:(platelet_pos(2) + platelet_radius), ...
+                (platelet_pos(3) - platelet_radius):VoxelSize:(platelet_pos(3) + platelet_radius));
+
+            % Flatten the grids and compute distances from the platelet center
+            sphere_coords = [x_sphere(:), y_sphere(:), z_sphere(:)];
+            distances = sqrt(sum((sphere_coords - platelet_pos).^2, 2));
+
+            % Select points within the sphere radius
+            valid_sphere_points = sphere_coords(distances <= platelet_radius, :);
+
+            % Map valid points to matrix indices and update the ClotMatrix
+            for j = 1:size(valid_sphere_points, 1)
+                sphere_point_idx = map_to_matrix(valid_sphere_points(j, :));
+                if all(sphere_point_idx > 0 & sphere_point_idx <= Resolution)
+                    ClotMatrix(sphere_point_idx(1), sphere_point_idx(2), sphere_point_idx(3)) = 3; % Platelet
+                end
             end
         end
     end
+end
 
     % ==========================================================
     % Save the cropped matrix
     % ==========================================================
     save(sprintf('CroppedClotMatrix_%d.mat',counter), 'ClotMatrix');
-    % ==========================================================
-    % Visualize ClotMatrix with scatter3
-    % ==========================================================
-    % ==========================================================
-    % Plot ClotMatrix using scatter3
-    % ==========================================================
-
-    % Define voxel size and bounds for mapping back to physical coordinates
-    VoxelSize = Window_size_crop / Resolution; % Size of each voxel in um
-
-    % Find indices of non-zero voxels
-    [R, C, Z] = ind2sub(size(ClotMatrix), find(ClotMatrix > 0));
-
-    % Map indices back to physical coordinates
-    x_coords = (R - 1) * VoxelSize + crop_min;
-    y_coords = (C - 1) * VoxelSize + crop_min;
-    z_coords = (Z - 1) * VoxelSize + crop_min;
-
-    % Extract types of elements
-    elements = ClotMatrix(ClotMatrix > 0);
-
-    % Plot each element type with a unique color
-    figure;
-    hold on;
-    axis equal;
-    xlabel('X (\mum)');
-    ylabel('Y (\mum)');
-    zlabel('Z (\mum)');
-    title('ClotMatrix Visualization');
-    view(3);
-    grid on;
-
-    % Plot RBCs (1)
-    scatter3(x_coords(elements == 1), y_coords(elements == 1), z_coords(elements == 1), ...
-        10, 'r', 'filled', 'DisplayName', 'RBCs'); % Red for RBCs
-
-    % Plot Fibrin (2)
-    scatter3(x_coords(elements == 2), y_coords(elements == 2), z_coords(elements == 2), ...
-        10, 'g', 'filled', 'DisplayName', 'Fibrin'); % Green for Fibrin
-
-    % Plot Platelets (3)
-    scatter3(x_coords(elements == 3), y_coords(elements == 3), z_coords(elements == 3), ...
-        10, 'b', 'filled', 'DisplayName', 'Platelets'); % Blue for Platelets
-
-    % Add legend
-    legend show;
-
-    hold off;
-
 end
 % ==========================================================
 % Section 12: Helper Functions
@@ -962,7 +778,7 @@ end
 % ==========================================================
 % Function: calculate_local_density
 % ==========================================================
-function [point_density] = plot_density_based_points(Points, radius, plot_result)
+function [point_density] = plot_density_based_points(Points, radius)
 % Plot the points with colors based on their local density
 % Inputs:
 %   Points - an Nx3 array of point coordinates
@@ -995,36 +811,6 @@ densities_normalized = (densities - min(densities)) / (max(densities) - min(dens
 % Create a colormap for density-based coloring
 cmap = jet(256); % Use the 'jet' colormap with 256 colors
 
-if plot_result
-    % Plot the points with color based on their local density
-    figure;
-    hold on;
-    set(gcf, 'Color', 'k');
-    for i = 1:numPoints
-        % Map the normalized density value to the colormap
-        color_idx = max(1, round(densities_normalized(i) * 255)); % Ensure at least index 1
-        color = cmap(color_idx, :);
-        % Plot the point with the determined color
-        plot3(Points(i, 1), Points(i, 2), Points(i, 3), '.', 'Color', color, 'MarkerSize', 2);
-    end
-
-    axis equal;
-    grid on;
-    grid minor;
-    set(gca, 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic', ...
-        'XColor', 'w', 'YColor', 'w', 'ZColor', 'w', 'Color', 'k'); % Axis and background properties
-    title('Node positions colored by local density', 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic', 'Color', 'w');
-    xlabel('X(um)', 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic', 'Color', 'w');
-    ylabel('Y(um)', 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic', 'Color', 'w');
-    zlabel('Z(um)', 'FontName', 'Calibri', 'FontSize', 24, 'FontWeight', 'bold', 'FontAngle', 'italic', 'Color', 'w');
-    view(3);
-    hold off;
-
-    % Add a colorbar for reference
-    colormap(cmap);
-    colorbar;
-    clim([min(densities), max(densities)]);
-end
 end
 
 % ==========================================================
